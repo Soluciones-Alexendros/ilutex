@@ -13,9 +13,10 @@ optdepends=('python-gobject: panel gráfico ilutex-gui' 'gtk4: panel gráfico il
 makedepends=('cargo' 'gettext')
 conflicts=('kbd-rgb' 'keybackcon')
 replaces=('kbd-rgb' 'keybackcon')
-# No anunciar AUR hasta checksum real + .SRCINFO + chroot (ver docs/compatibility/matriz.md).
-# Sustituir SKIP con `updpkgsums` antes de publicar.
-sha256sums=('1c3cc973be4555e7bddd6352d843a241fb60e2dd1f76daed23da6c6583ab01d9')
+# Checksum del tarball del tag publicado en GitHub (no reproducible: usar
+# `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
+# antes de anunciar el paquete en AUR (ver docs/compatibility/matriz.md).
+sha256sums=('d52b06982ca803df520fbc0466cfd32cb7321867a5bfcb6cbf6a9f5e49cab40b')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 
 build() {
