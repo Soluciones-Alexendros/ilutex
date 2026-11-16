@@ -39,6 +39,8 @@ jobs:
           test "$VER_TOML" = "$VER_LOCK"
       - name: GUI py_compile
         run: python3 -m py_compile gui/*.py
+      - name: Paquetes npm de plataforma
+        run: python3 scripts/check-npm-platforms.py
       - name: Catálogos i18n
         run: |
           set -euo pipefail

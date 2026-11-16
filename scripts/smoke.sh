@@ -116,6 +116,13 @@ else
   bad "udev_install_argv"
 fi
 
+# Los paquetes de plataforma de npm deben exportar el binario que declaran.
+if python3 "${REPO_DIR}/scripts/check-npm-platforms.py"; then
+  ok "paquetes npm de plataforma coherentes"
+else
+  bad "paquetes npm de plataforma"
+fi
+
 if [ -f "${REPO_DIR}/assets/icons/ilutex.svg" ]; then
   ok "icono"
 else
