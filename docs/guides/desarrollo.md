@@ -110,6 +110,26 @@ Contrato único en `gui/__init__.py`:
   (ignorado por git). Requiere el secret `NPM_TOKEN`. Prueba local con
   `npm pack` en `npm/` y en `npm/platforms/linux-x64/`.
 
+## Variables de entorno para desarrollo/testing (multi-teclado)
+
+Para probar con otros dispositivos LampArray sin recompilar, usa estas
+variables de entorno que sobrescriben los valores por defecto del AERO X16:
+
+| Variable | Descripción | Valor por defecto | Formato |
+|---|---|---|---|
+| `ILUTEX_VID` | Vendor ID USB | `0x0414` | hex u16 (`0414` o `0x0414`) |
+| `ILUTEX_PID` | Product ID USB | `0x8104` | hex u16 (`8104` o `0x8104`) |
+| `ILUTEX_HID_SIGNATURE` | Firma descriptor HID | `05 59 09 01 A1 01` | hex bytes (`05590901a101` o `0x05590901a101`) |
+
+Ejemplo:
+```bash
+ILUTEX_VID=0x1234 ILUTEX_PID=0x5678 cargo run -- info
+```
+
+En tests unitarios: `crate::TEST_ENV_LOCK` serializa el acceso a `std::env`.
+Ver tests en `src/protocol.rs` (`device_signature_tests`) y `src/lamp.rs`
+(`vid_pid_override_tests`).
+
 ## Dónde documentar
 
 | Cambio | Documento |

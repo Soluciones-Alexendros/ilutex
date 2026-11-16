@@ -135,6 +135,26 @@ diseño en [`ARCHITECTURE.md`](ARCHITECTURE.md) y decisiones en [`docs/architect
 
 Runbook: [`docs/runbooks/dispositivo.md`](docs/runbooks/dispositivo.md).
 
+## Otros teclados LampArray
+
+El CLI detecta el teclado AERO X16 (VID `0414`, PID `8104`, firma HID
+`05 59 09 01 A1 01`). Para usar otro dispositivo compatible con LampArray,
+sobrescribe estos valores con variables de entorno:
+
+| Variable | Descripción | Formato | Ejemplo |
+|---|---|---|---|
+| `ILUTEX_VID` | Vendor ID USB | hex u16 | `0414` o `0x0414` |
+| `ILUTEX_PID` | Product ID USB | hex u16 | `8104` o `0x8104` |
+| `ILUTEX_HID_SIGNATURE` | Firma del descriptor HID | hex bytes | `05590901a101` o `0x05590901a101` |
+
+Ejemplo:
+```bash
+ILUTEX_VID=0x1234 ILUTEX_PID=0x5678 ilutex info
+```
+
+La regla udev (`70-ilutex.rules`) es específica del AERO X16; para otro
+teclado crea tu propia regla con el VID/PID correspondiente.
+
 ## Desarrollo
 
 ¿Quieres compilar o contribuir? [`docs/guides/desarrollo.md`](docs/guides/desarrollo.md) y [`CONTRIBUTING.md`](CONTRIBUTING.md).
