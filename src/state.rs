@@ -156,6 +156,9 @@ fn new_run_id() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
     // Mezcla PID para distinguir procesos en el mismo nanosegundo.
+    // `nanos` = u128 (nanosegundos desde epoch); truncar a u64 baja 64 bits.
+    // [`clippy::cast_possible_truncation`]: pérdida intencional de bits altos;
+    // entropía suficiente en bits bajos + PID << 32 para unicidad práctica.
     #[allow(clippy::cast_possible_truncation)]
     let low = nanos as u64;
     low ^ (u64::from(std::process::id()) << 32)
@@ -380,7 +383,10 @@ pub fn save_persisted(st: &PersistedState) -> io::Result<()> {
 }
 
 /// Persiste color base y porcentaje (conserva modo/power/restore).
-#[allow(dead_code)] // API de tests y de quien enlace el binario como librería de comandos.
+/// API pública para quien linkee el binario como librería de comandos (tests, integraciones).
+/// No se usa internamente: el estado se guarda via `save_persisted`/`apply`/`set_runtime_mode`.
+/// `#[allow(dead_code)]`: API pública para linking externo; tests la usan internamente.
+#[allow(dead_code)]
 pub fn save_state(rgb: Rgb, pct: u32) -> io::Result<()> {
     with_state_txn(|| {
         let mut st = load_persisted()?;

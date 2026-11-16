@@ -357,6 +357,8 @@ fn json_escape(s: &str) -> String {
             '"' => out.push_str("\\\""),
             '\\' => out.push_str("\\\\"),
             c if c < '\u{20}' => {
+                // `c < '\u{20}'` → código 0–31; cabe en u32 sin truncar.
+                // `clippy::cast_possible_truncation`: char es u32 en Rust; cast es no-op.
                 #[allow(clippy::cast_possible_truncation)]
                 let code = c as u32;
                 let _ = write!(out, "\\u{code:04x}");
@@ -403,6 +405,9 @@ fn apply_fixed_brightness_transition(st: &mut state::PersistedState, new_brightn
     st.mode = "fijar".into();
 }
 
+/// `BrightnessChange` es `Copy` pequeño (discriminante + u32, 8 bytes);
+/// pasar por valor es más eficiente que por referencia.
+/// `clippy::needless_pass_by_value`: tipo `Copy` trivial; valor preferido.
 #[allow(clippy::needless_pass_by_value)]
 fn cmd_brightness(change: BrightnessChange) -> Result<(), Error> {
     // Barrera de test antes del candado de estado: ambos hijos se sincronizan
@@ -476,6 +481,9 @@ fn cmd_firmware_effects(on: bool) -> Result<(), Error> {
     })
 }
 
+/// `Mode` es `Copy` trivial (discriminante solo, 1 byte); `fps` es u64.
+/// Ambos por valor: más eficiente que referencias para tipos `Copy` pequeños.
+/// `clippy::needless_pass_by_value`: tipos `Copy` triviales; valor preferido.
 #[allow(clippy::needless_pass_by_value)]
 fn cmd_animation(mode: Mode, fps: u64) -> Result<(), Error> {
     // KBC-04/05: run_animation publica el modo tras adquirir recursos y hace
