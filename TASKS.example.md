@@ -5,6 +5,6 @@ Copia este fichero a `TASKS.md` para tu seguimiento local (`cp TASKS.example.md 
 
 Formato sugerido:
 
-- [ ] Probar `keybackcon animation rainbow` en el AERO X16
+- [ ] Probar `ilutex animation rainbow` en el AERO X16
 - [ ] Revisar contraste del light-stage con brillo bajo
 - [ ] Empaquetar .deb / AUR cuando la versión esté estable

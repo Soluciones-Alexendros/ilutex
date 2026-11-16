@@ -1,4 +1,4 @@
-# Keybackcon en Hyprland
+# Ilutex en Hyprland
 
 ### Propósito
 
@@ -20,12 +20,12 @@ registradas. Ver [`docs/compatibility/matriz.md`](../compatibility/matriz.md).
 ## Wayland
 
 No fuerces `GDK_BACKEND=x11` en el uso normal. Identidad de aplicación:
-`org.iniciativas.keybackcon` (no cambiar sin plan de migración).
+`org.alexendros.ilutex` (no cambiar sin plan de migración).
 
 ```bash
-keybackcon-gui
+ilutex-gui
 # o solo bandeja, si hay host StatusNotifier:
-keybackcon-gui --tray
+ilutex-gui --tray
 ```
 
 ## Waybar (módulo tray)
@@ -41,8 +41,8 @@ el archivo. Ejemplo a fusionar (ajusta a tu versión de Waybar):
 }
 ```
 
-Si reinicias Waybar con Keybackcon ya en marcha, el indicador debe
-re-registrarse; si no hay host, abre la ventana (`keybackcon-gui`).
+Si reinicias Waybar con Ilutex ya en marcha, el indicador debe
+re-registrarse; si no hay host, abre la ventana (`ilutex-gui`).
 
 ## UWSM y sin UWSM
 
@@ -53,13 +53,13 @@ re-registrarse; si no hay host, abre la ventana (`keybackcon-gui`).
 
 ```conf
 # Opt-in; no lo añadimos nosotros.
-exec-once = keybackcon-gui --tray
+exec-once = ilutex-gui --tray
 ```
 
 Para restauración al login con systemd de usuario (si tu sesión lo expone):
 
 ```bash
-systemctl --user enable --now keybackcon.service
+systemctl --user enable --now ilutex.service
 ```
 
 Comprueba que `systemctl --user` habla con el gestor de **tu** sesión gráfica;

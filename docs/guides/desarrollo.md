@@ -4,8 +4,8 @@ Checklist ejecutable (en orden; la fachada es `make validate`):
 
 - [ ] `make lint` — fmt, clippy `--all-targets -D warnings`, rustdoc, `py_compile` de `gui/*.py`
 - [ ] `make test` — `cargo test -- --test-threads=1` (43 tests; los de pid usan `XDG_RUNTIME_DIR` temporal)
-- [ ] `make i18n` — regenera `po/keybackcon.pot` y compila los `.mo` en `gui/locale/` (los tests de i18n los necesitan)
-- [ ] `python3 -m unittest discover -s gui/tests` — tests de la GUI (sin display ni hardware; el control D-Bus necesita `python3-gi` y `dbus-daemon`). En el job `quality` van con `KEYBACKCON_REQUIRE_GUI_SUITE=1` + `KEYBACKCON_GUI_TESTS=1` + `xvfb-run` (GTK4/Adw); sin el flag de suite `test_window_init` se omite (smoke no lo exige)
+- [ ] `make i18n` — regenera `po/ilutex.pot` y compila los `.mo` en `gui/locale/` (los tests de i18n los necesitan)
+- [ ] `python3 -m unittest discover -s gui/tests` — tests de la GUI (sin display ni hardware; el control D-Bus necesita `python3-gi` y `dbus-daemon`). En el job `quality` van con `ILUTEX_REQUIRE_GUI_SUITE=1` + `ILUTEX_GUI_TESTS=1` + `xvfb-run` (GTK4/Adw); sin el flag de suite `test_window_init` se omite (smoke no lo exige)
 - [ ] `make check-i18n` — coherencia `.pot`/`.po` y sin cadenas sin traducir
 - [ ] `make smoke` — `./scripts/smoke.sh` (binario + GUI + packaging + tests unitarios)
 - [ ] `./scripts/install.sh` — instala en `~/.local` + udev (sudo) + unidades de usuario
@@ -26,7 +26,7 @@ Checklist ejecutable (en orden; la fachada es `make validate`):
   sesión privado (nunca toca el bus del usuario) y comprueba el contrato de
   `CONTROL_XML`, el despacho de `Toggle`/`Present`/`Quit` y `_llamar_control`
   contra un servicio en otro proceso. Requiere `python3-gi` y
-  `dbus-daemon`; en CI (`KEYBACKCON_REQUIRE_DBUS=1`) su ausencia falla en vez
+  `dbus-daemon`; en CI (`ILUTEX_REQUIRE_DBUS=1`) su ausencia falla en vez
   de saltarse la cobertura.
 - **Lints**: `Cargo.toml` activa `missing_docs` y el grupo
   `clippy::pedantic`; deben quedar limpios con
@@ -86,10 +86,10 @@ Contrato único en `gui/__init__.py`:
 ## Empaquetado y release
 
 - **Debian/Ubuntu (`.deb`)**: `cargo install cargo-deb --locked && cargo deb`
-  produce `target/debian/keybackcon_<versión>-1_amd64.deb` a partir de
+  produce `target/debian/ilutex_<versión>-1_amd64.deb` a partir de
   `[package.metadata.deb]` en `Cargo.toml`. Los scripts `postinst`/`prerm`
   viven en `packaging/debian/` y recargan udev/systemd; se instala con
-  `sudo apt install ./keybackcon_*.deb`.
+  `sudo apt install ./ilutex_*.deb`.
 - **Arch Linux (AUR)**: `packaging/aur/PKGBUILD` compila con
   `cargo build --release --locked` e instala binario, GUI, lanzador, icono,
   regla udev, unidades de usuario y licencia. Antes de publicar hay que
@@ -97,14 +97,14 @@ Contrato único en `gui/__init__.py`:
   `.SRCINFO` (`makepkg --printsrcinfo`); ver `packaging/aur/README.md`.
 - **GitHub Releases**: al empujar un tag `vX.Y.Z`,
   `.github/workflows/release.yml` publica el tarball
-  `keybackcon-vX.Y.Z-linux-x86_64.tar.gz`, el `.deb`, un SBOM CycloneDX
+  `ilutex-vX.Y.Z-linux-x86_64.tar.gz`, el `.deb`, un SBOM CycloneDX
   (`cargo-cyclonedx`), `SHA256SUMS` y una attestation de procedencia
   (`actions/attest-build-provenance`).
 - **npm**: `.github/workflows/npm.yml` compila x86_64 y arm64 y publica el
-  meta-paquete `keybackcon` (lanzador + postinstalador de regla udev y
+  meta-paquete `ilutex` (lanzador + postinstalador de regla udev y
   unidades systemd de usuario) junto a los paquetes de binario por
-  plataforma `keybackcon-linux-x64` y `keybackcon-linux-arm64` (nombres
-  planos: la cuenta del token no tiene el scope `@keybackcon` y npm
+  plataforma `ilutex-linux-x64` y `ilutex-linux-arm64` (nombres
+  planos: la cuenta del token no tiene el scope `@ilutex` y npm
   devuelve E404 al publicar en un scope inexistente). Las fuentes
   viven en `npm/`; el binario se copia en `npm/platforms/*/bin/` solo en CI
   (ignorado por git). Requiere el secret `NPM_TOKEN`. Prueba local con
