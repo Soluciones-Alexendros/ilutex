@@ -123,6 +123,14 @@ else
   bad "paquetes npm de plataforma"
 fi
 
+# El producto se llama ilutex: ningún residuo del nombre anterior fuera de la
+# migración heredada (marcada como 'legado:').
+if python3 "${REPO_DIR}/scripts/check-legacy-names.py"; then
+  ok "sin residuos del nombre anterior"
+else
+  bad "residuos del nombre anterior"
+fi
+
 if [ -f "${REPO_DIR}/assets/icons/ilutex.svg" ]; then
   ok "icono"
 else

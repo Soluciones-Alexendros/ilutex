@@ -7,7 +7,7 @@ PartOf=graphical-session.target
 [Service]
 Type=oneshot
 # --on-login respeta restore_policy=never del estado persistido.
-ExecStart=__KEYBACKCON_BIN__ restore --on-login
+ExecStart=__ILUTEX_BIN__ restore --on-login
 RemainAfterExit=yes
 # Al iniciar sesión las ACL uaccess pueden no estar aplicadas todavía.
 Restart=on-failure

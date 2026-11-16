@@ -1,16 +1,16 @@
 # Arquitectura
 
-`keybackcon` habla directamente con el teclado vía hidraw, sin demonios ni dependencias.
+`ilutex` habla directamente con el teclado vía hidraw, sin demonios ni dependencias.
 
 ```
 ┌──────────────┐   ioctl HIDIOCGFEATURE / HIDIOCSFEATURE   ┌────────────┐
-│ keybackcon   │  ──────────────────────────────────────▶  │ /dev/hidrawN│
+│ ilutex       │  ──────────────────────────────────────▶  │ /dev/hidrawN│
 │ (Rust, 0 deps)│   LampArray, Usage Page 0x59, reportes    │ AERO X16    │
 └──────────────┘   1/5/6: atributos, color, autónomo       └────────────┘
-       │ state versionado: $XDG_STATE_HOME/keybackcon/state
+       │ state versionado: $XDG_STATE_HOME/ilutex/state
        │   (+ state.lock RMW; lectura heredada plana / kbd-rgb)
-       │ writer.lock: /run/keybackcon/writer.lock (flock HID)
-       │ pidfile: $XDG_RUNTIME_DIR/keybackcon/animation.pid
+       │ writer.lock: /run/ilutex/writer.lock (flock HID)
+       │ pidfile: $XDG_RUNTIME_DIR/ilutex/animation.pid
        ▼
 ┌──────────────┐   subprocess: set / brightness / animation / stop
 │ control_panel│   + lectura de state/pidfile para vista previa y estado
@@ -51,7 +51,7 @@ firmware declara `IntensityLevelCount=1`, no hay canal de brillo), `hsv`,
 ### `state.rs` — estado persistente versionado
 
 Formato canónico (`SCHEMA_VERSION = 1`) en
-`$XDG_STATE_HOME/keybackcon/state` (claves `schema_version`, `base_color`,
+`$XDG_STATE_HOME/ilutex/state` (claves `schema_version`, `base_color`,
 `brightness`, `power`, `mode`, `restore_policy`). Lectura heredada del
 plano `"<hex> <pct>"` y de `kbd-rgb/state`. `parse_state_text` /
 `load_persisted` distinguen ausencia (defaults), corrupción y esquema
@@ -59,7 +59,7 @@ futuro (error; el original se conserva). `save_persisted` usa temporal
 exclusivo `0600` + `rename`. La GUI reutiliza el mismo oráculo en
 `gui/client.py`. Las actualizaciones RMW (brillo, modo) toman un `flock`
 breve sobre `state.lock` (no se mantiene durante el bucle de animación).
-El id de ejecución vive en `$XDG_RUNTIME_DIR/keybackcon/animation.run`
+El id de ejecución vive en `$XDG_RUNTIME_DIR/ilutex/animation.run`
 para que una limpieza obsoleta no pise un `off` nuevo. `load_state` /
 `save_state` / `apply` / `set_runtime_mode` / `begin_animation_mode` /
 `end_animation_mode` son la API; el contrato de sesión está en
@@ -68,15 +68,15 @@ para que una limpieza obsoleta no pise un `off` nuevo. `load_state` /
 ### `animation.rs` — animación exclusiva y parada limpia
 
 Pidfile nuevo + dos rutas heredadas. El derecho de escribir no es el
-pidfile: es el `flock` de `/run/keybackcon/writer.lock` (`writer.rs`), el
+pidfile: es el `flock` de `/run/ilutex/writer.lock` (`writer.rs`), el
 mismo que usan `set`, `off`, `brightness`, `firmware-effects`, `restore` y
 `stop` cuando restauran color. `info` no lo toma. Si el directorio no es el
-que instala `tmpfiles.d` (`root:keybackcon`, `0770`) o el fichero no es
+que instala `tmpfiles.d` (`root:ilutex`, `0770`) o el fichero no es
 `0660`, la escritura se rechaza. No hay fallback a `/var/tmp`.
 
 La parada sigue validando el pid con `/proc/<pid>/stat` (un zombie no es
 una animación viva) y `/proc/<pid>/cmdline` (un PID reciclado que ya no es
-`keybackcon` no se señaliza). `run_animation` señala primero la animación
+`ilutex` no se señaliza). `run_animation` señala primero la animación
 anterior y solo abre el HID con el candado ya tomado. Los signos solo marcan
 un `AtomicBool`; el bucle relee el estado cada 500 ms y `fps` se acota a
 1–`MAX_FPS` (60); al parar restaura el color base y borra su pidfile solo si
@@ -131,13 +131,13 @@ distribución (`/etc/os-release`) para sugerir el comando de instalación de
 las dependencias en cada familia de paquetes (apt/pacman/dnf/zypper).
 
 La bandeja manda la ventana por D-Bus: la interfaz
-`org.iniciativas.keybackcon.Control` (`Toggle`/`Present`/`Quit`, ver
+`org.alexendros.ilutex.Control` (`Toggle`/`Present`/`Quit`, ver
 `CONTROL_XML`) la registra la ventana hija y `gui/main.py` la despacha con
 `GLib.idle_add` para no tocar GTK desde el bus. Solo la instancia
 `--tray-child` acepta control remoto. La suite arranca un bus de sesión
 privado para cubrir el contrato, el despacho y la llamada entre procesos.
 
-La i18n de la GUI es gettext con **msgids en inglés** (`po/keybackcon.pot`)
+La i18n de la GUI es gettext con **msgids en inglés** (`po/ilutex.pot`)
 y catálogos `po/es.po` y `po/en.po`; `gui/i18n.py` resuelve el idioma y
 compila a `gui/locale/<idioma>/LC_MESSAGES/` con `make i18n` (no se
 versionan los `.mo`). El CLI Rust no se traduce (ADR 14).
@@ -146,7 +146,7 @@ versionan los `.mo`). El CLI Rust no se traduce (ADR 14).
 
 | Flujo | Pasos |
 |---|---|
-| `set` / `off` / `brightness` | Si va a escribir en el HID, toma `/run/keybackcon/writer.lock`, abre el dispositivo y persiste. El brillo no detiene una animación viva (ADR 4): en ese caso solo guarda el porcentaje. |
+| `set` / `off` / `brightness` | Si va a escribir en el HID, toma `/run/ilutex/writer.lock`, abre el dispositivo y persiste. El brillo no detiene una animación viva (ADR 4): en ese caso solo guarda el porcentaje. |
 | `animation` | Detiene la anterior → toma el candado → anota el pidfile → abre el dispositivo → bucle (relee estado cada 500 ms) → al parar restaura la base, borra su pidfile y suelta el candado |
 | `stop` | Señaliza SIGTERM y espera (≤1 s). Si la animación muere, restaura el color con el candado tomado. Si sigue viva, no abre el dispositivo. |
 | `restore` | Lee estado guardado → `apply` (autónomo off → color) |

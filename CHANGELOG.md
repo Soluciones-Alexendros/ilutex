@@ -4,6 +4,23 @@ La fuente de verdad son los tags y `git-cliff`. Resumen:
 
 ## [Unreleased]
 
+## [3.0.3] — 2026-11-16
+- **Barrido del nombre anterior.** Se eliminan los residuos de `keybackcon`:
+  variables de entorno de pruebas y del postinstalador (`KEYBACKCON_*` →
+  `ILUTEX_*`), placeholder de las unidades (`__KEYBACKCON_BIN__` →
+  `__ILUTEX_BIN__`), clases de la GUI (`KeybackconClient/Error` →
+  `IlutexClient/Error`) y decenas de rutas y nombres en la documentación y
+  en `MANIFEST.txt`. Se corrige el App ID documentado
+  (`org.iniciativas.*` → `org.alexendros.ilutex`).
+- **Migración intacta y vigilada.** Se conserva la lectura del estado y los
+  pidfiles heredados, los binarios antiguos reconocidos y los
+  `conflicts/replaces` de los paquetes. Nuevo
+  `scripts/check-legacy-names.py`, en `make smoke` y en el job `quality`, que
+  rechaza cualquier residuo y comprueba que esas rutas heredadas siguen
+  existiendo.
+- Catálogos: cabeceras al día (versión y mantenedor) regeneradas con
+  `make i18n`.
+
 ## [3.0.2] — 2026-11-16
 - **Arreglo del paquete npm.** Los índices de `ilutex-linux-x64` e
   `ilutex-linux-arm64` exportaban `bin/keybackcon` (nombre anterior al

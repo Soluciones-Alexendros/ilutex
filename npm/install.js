@@ -130,7 +130,7 @@ function installSystemdUnits(bin) {
   const units = ['ilutex.service', 'ilutex-animation@.service'];
   for (const unit of units) {
     const tmpl = fs.readFileSync(path.join(ROOT, 'systemd', unit), 'utf8');
-    const rendered = tmpl.split('__KEYBACKCON_BIN__').join(bin);
+    const rendered = tmpl.split('__ILUTEX_BIN__').join(bin);
     const dest = path.join(dir, unit);
     const existing = fs.existsSync(dest) ? fs.readFileSync(dest, 'utf8') : null;
     if (existing !== rendered) {

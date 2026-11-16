@@ -3,8 +3,8 @@ Description=iLutex animation (%i)
 
 [Service]
 Type=simple
-ExecStart=__KEYBACKCON_BIN__ animation %i
-ExecStopPost=__KEYBACKCON_BIN__ stop
+ExecStart=__ILUTEX_BIN__ animation %i
+ExecStopPost=__ILUTEX_BIN__ stop
 Restart=no
 Nice=10
 

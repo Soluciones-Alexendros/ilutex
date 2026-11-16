@@ -81,7 +81,7 @@ def _setup_i18n():
 
 
 def _load_client():
-    return load("client").KeybackconClient()
+    return load("client").IlutexClient()
 
 
 def _load_tray():

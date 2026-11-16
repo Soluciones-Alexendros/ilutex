@@ -2,7 +2,7 @@
 
 | ID | Título | Estado | Resumen |
 |---|---|---|---|
-| 1 | Nombre `keybackcon` | Aceptada | Un solo nombre para binario, repo y App ID, con migración heredada desde `kbd-rgb`. |
+| 1 | Nombre `keybackcon` | Histórica | Criterio vigente: un solo nombre para binario, repo y App ID. El nombre actual es `ilutex` (desde 3.0.0), con migración heredada desde `kbd-rgb`/`keybackcon`. |
 | 2 | Cargo con cero dependencias | Aceptada | Binario pequeño y reproducible sin crates externos. |
 | 3 | Instancia única vía pidfile validado | Mecanismo sustituido por ADR 13 | Invariante: una sola animación viva. El mecanismo `create_new`+pidfile queda sustituido por bloqueo con descriptor (`flock`). |
 | 4 | Brillo por escala RGB persistente | Aceptada | Sin canal de brillo en firmware, el % escala el RGB y persiste. |
@@ -14,14 +14,20 @@
 | 10 | Rustdoc, pedantic y benchmarks sin dependencias | Aceptada | Calidad medible (rustdoc, clippy pedantic, bench/property propios) sin `criterion`/`proptest`. |
 | 11 | Cota `HID_IOCTL_MAX_LEN` en el ioctl | Aceptada | Rechazar en construcción lo que el campo size de 14 bits no puede codificar. |
 | 12 | Alineación al canon P0+P1+P2 | Aceptada | Jobs `quality`/`test`/`build`/`smoke`, docs canónicos y Renovate; sin clonar stacks ajenos. |
-| 13 | Exclusión por descriptor y un solo escritor | Aceptada, enmendada | Todo escritor HID toma el mismo `flock` en `/run/keybackcon/writer.lock`. Sin daemon. La sesión activa no es una política adicional. |
+| 13 | Exclusión por descriptor y un solo escritor | Aceptada, enmendada | Todo escritor HID toma el mismo `flock` en `/run/ilutex/writer.lock`. Sin daemon. La sesión activa no es una política adicional. |
 | 14 | i18n de la GUI: msgids en inglés, catálogos `es`/`en` | Aceptada | La GUI usa gettext con msgids en inglés; `es.po` traduce y `en.po` es identidad. El CLI Rust no se traduce. |
 
 ## 1. Nombre: `keybackcon` / "Keyboard Backlight Controls"
-Un solo nombre corto para binario, repo y App ID (`org.iniciativas.keybackcon`);
+**Estado: histórico.** Desde 3.0.0 el producto se llama `ilutex` (binario
+`ilutex`, App ID `org.alexendros.ilutex`). Se conserva el criterio que sigue
+vigente: **un solo nombre** para binario, repo y App ID, con lectura heredada
+legible del estado anterior.
+Un solo nombre corto para binario, repo y App ID (`org.iniciativas.keybackcon`,
+hoy `org.alexendros.ilutex`);
 el nombre largo solo en display/docs/ventana. Rutas nuevas
-(`keybackcon/state`, `keybackcon/animation.pid`) con lectura heredada de
-`kbd-rgb/*`. Motivo: fin del baile de nombres, migración sin romper a nadie.
+(`keybackcon/state`, `keybackcon/animation.pid`, hoy `ilutex/*`) con lectura
+heredada de `kbd-rgb/*`. Motivo: fin del baile de nombres, migración sin
+romper a nadie.
 
 ## 2. Cargo con cero dependencias
 Estructura `src/` por módulos + `cargo test/clippy/fmt` en CI. Motivo:
@@ -132,13 +138,13 @@ Consultar (`info`) no toma el candado y no escribe. No hay daemon
 privilegiado ni un segundo proceso dueño del dispositivo (ADR 9). Sigue
 sin crates nuevos (ADR 2): `flock` y `open` son libc.
 
-El candado es `/run/keybackcon/writer.lock`. `tmpfiles.d` crea el directorio
-`root:keybackcon` modo `0770` y el fichero `root:keybackcon` modo `0660`.
+El candado es `/run/ilutex/writer.lock` (antes `/run/keybackcon/writer.lock`). `tmpfiles.d` crea el directorio
+`root:ilutex` modo `0770` y el fichero `root:ilutex` modo `0660`.
 Esos modos están acoplados a `validate_installed_parent` / `open` en
 `src/writer.rs`: cambiar uno sin el otro rompe el escritor. El grupo
-`keybackcon` lo declara `sysusers.d` del paquete. **Instalar ≠ autorizar:**
+`ilutex` lo declara `sysusers.d` del paquete. **Instalar ≠ autorizar:**
 el postinst y `install.sh` crean grupo y candado, pero no añaden usuarios
-al grupo; la habilitación es explícita (`sudo usermod -aG keybackcon $USER`
+al grupo; la habilitación es explícita (`sudo usermod -aG ilutex $USER`
 y una sesión nueva). La regla udev actual no nombra un grupo: solo aplica
 `TAG+="uaccess"` al `hidraw`. Esa regla no cambia a `MODE="0666"` ni a un
 grupo que abra el dispositivo por sí solo. Para escribir hacen falta las

@@ -81,7 +81,7 @@ impl Drop for WriterGuard {
     }
 }
 
-/// Ruta del candado. En tests, `KEYBACKCON_WRITER_LOCK` absoluto sustituye a `/run`.
+/// Ruta del candado. En tests, `ILUTEX_WRITER_LOCK` absoluto sustituye a `/run`.
 pub fn writer_lock_path() -> PathBuf {
     #[cfg(test)]
     if let Some(p) = test_lock_override() {
@@ -103,7 +103,7 @@ fn test_override() -> bool {
 
 #[cfg(test)]
 fn test_lock_override() -> Option<PathBuf> {
-    let raw = std::env::var_os("KEYBACKCON_WRITER_LOCK")?;
+    let raw = std::env::var_os("ILUTEX_WRITER_LOCK")?;
     let p = PathBuf::from(raw);
     if p.is_absolute() {
         Some(p)
@@ -342,8 +342,8 @@ mod tests {
             // SAFETY: TEST_ENV_LOCK sigue tomado; restauramos el entorno del proceso.
             unsafe {
                 match self.prev.take() {
-                    Some(v) => std::env::set_var("KEYBACKCON_WRITER_LOCK", v),
-                    None => std::env::remove_var("KEYBACKCON_WRITER_LOCK"),
+                    Some(v) => std::env::set_var("ILUTEX_WRITER_LOCK", v),
+                    None => std::env::remove_var("ILUTEX_WRITER_LOCK"),
                 }
             }
         }
@@ -367,10 +367,10 @@ mod tests {
             .unwrap();
         file.set_permissions(fs::Permissions::from_mode(0o660))
             .unwrap();
-        let prev = std::env::var_os("KEYBACKCON_WRITER_LOCK");
+        let prev = std::env::var_os("ILUTEX_WRITER_LOCK");
         // SAFETY: TEST_ENV_LOCK serializa el entorno de tests.
         unsafe {
-            std::env::set_var("KEYBACKCON_WRITER_LOCK", &path);
+            std::env::set_var("ILUTEX_WRITER_LOCK", &path);
         }
         (dir, EnvGuard { _lock: guard, prev })
     }
@@ -378,8 +378,8 @@ mod tests {
     fn hijo(mode: &str, lock: &Path) -> std::process::Output {
         Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "writer::tests::writer_hijo_candado"])
-            .env("KEYBACKCON_LOCK_CHILD", mode)
-            .env("KEYBACKCON_WRITER_LOCK", lock)
+            .env("ILUTEX_LOCK_CHILD", mode)
+            .env("ILUTEX_WRITER_LOCK", lock)
             .env_remove("RUST_TEST_THREADS")
             .output()
             .expect("hijo de candado")
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn writer_hijo_candado() {
-        match std::env::var("KEYBACKCON_LOCK_CHILD").as_deref() {
+        match std::env::var("ILUTEX_LOCK_CHILD").as_deref() {
             Ok("fail") => {
                 let busy = WriterGuard::acquire().is_err();
                 std::process::exit(if busy { 2 } else { 0 });

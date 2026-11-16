@@ -49,7 +49,7 @@ en cada escritura HID. Las filas de la tabla que citan T-08 en adelante
 siguen siendo requisito hasta el PR que las implementa.
 
 Una sola escritura HID a la vez entre los procesos del producto que toman
-el candado (`/run/keybackcon/writer.lock`). `info` no escribe y no necesita
+el candado (`/run/ilutex/writer.lock`). `info` no escribe y no necesita
 el candado. Si el candado está ocupado o la ruta no es segura, el comando
 falla y no abre el dispositivo. Cerrar la interfaz no arranca una animación
 que aún estuviera en cola.

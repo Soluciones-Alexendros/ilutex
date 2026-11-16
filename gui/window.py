@@ -23,8 +23,8 @@ except ImportError:  # ejecución directa: gui/ en sys.path
 load, log_exc, gettext_func = api(__file__)
 
 _client_mod = load("client")
-KeybackconClient = _client_mod.KeybackconClient
-KeybackconError = _client_mod.KeybackconError
+IlutexClient = _client_mod.IlutexClient
+IlutexError = _client_mod.IlutexError
 udev_install_argv = _client_mod.udev_install_argv
 state_paths = _client_mod.state_paths
 _colors = load("colors")
@@ -205,7 +205,7 @@ class MesaWindow(Adw.ApplicationWindow):
         self._hide_on_close = hide_on_close
         self._on_preferences = on_preferences
         if client is None:
-            self._client = KeybackconClient()
+            self._client = IlutexClient()
         else:
             self._client = client
         # None = aún consultando; {} = sin teclado; dict = datos del JSON.

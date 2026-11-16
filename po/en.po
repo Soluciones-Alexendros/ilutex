@@ -1,14 +1,14 @@
-# English translation for keybackcon.
-# Copyright (C) 2026 keybackcon contributors
-# This file is distributed under the same license as the keybackcon package.
+# English translation for ilutex.
+# Copyright (C) 2026 ilutex contributors
+# This file is distributed under the same license as the ilutex package.
 msgid ""
 msgstr ""
-"Project-Id-Version: keybackcon 2.4.1\n"
+"Project-Id-Version: ilutex 3.0.2\n"
 "Report-Msgid-Bugs-To: https://github.com/Soluciones-Alexendros/ilutex/"
 "issues\n"
 "POT-Creation-Date: 2026-11-14 02:23+0100\n"
 "PO-Revision-Date: 2026-10-18 00:00+0000\n"
-"Last-Translator: keybackcon <keybackcon@local>\n"
+"Last-Translator: Alexendros <operaciones@alexendros.dev>\n"
 "Language-Team: English\n"
 "Language: en\n"
 "MIME-Version: 1.0\n"

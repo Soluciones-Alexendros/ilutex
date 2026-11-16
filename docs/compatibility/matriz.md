@@ -58,7 +58,7 @@ Waybar automáticamente. Esta estabilización no lo pasa a soportado.
   rechaza libadwaita 1.2 no es una compatibilidad pendiente de recuperar
   en este cierre.
 - Ubuntu 22.04: el CLI es candidato. La GUI no se anuncia.
-- Varios usuarios: la exclusión mutua del candado en `/run/keybackcon`
+- Varios usuarios: la exclusión mutua del candado en `/run/ilutex`
   (ADR 13) es el contrato. No se anuncia una política distinta de «sesión
   gráfica activa» mientras el dispositivo siga gobernado por `uaccess`.
 - El tag `v2.3.1` no se mueve. Su `Cargo.lock` no coincide con el

@@ -12,18 +12,18 @@ const INSTALL_JS = path.join(ROOT, 'npm', 'install.js');
 
 const prevHome = process.env.HOME;
 const prevPath = process.env.PATH;
-const prevSkipUdev = process.env.KEYBACKCON_SKIP_UDEV;
-const prevForceEnable = process.env.KEYBACKCON_ENABLE_RESTORE;
+const prevSkipUdev = process.env.ILUTEX_SKIP_UDEV;
+const prevForceEnable = process.env.ILUTEX_ENABLE_RESTORE;
 
 function restoreEnv() {
   if (prevHome === undefined) delete process.env.HOME;
   else process.env.HOME = prevHome;
   if (prevPath === undefined) delete process.env.PATH;
   else process.env.PATH = prevPath;
-  if (prevSkipUdev === undefined) delete process.env.KEYBACKCON_SKIP_UDEV;
-  else process.env.KEYBACKCON_SKIP_UDEV = prevSkipUdev;
-  if (prevForceEnable === undefined) delete process.env.KEYBACKCON_ENABLE_RESTORE;
-  else process.env.KEYBACKCON_ENABLE_RESTORE = prevForceEnable;
+  if (prevSkipUdev === undefined) delete process.env.ILUTEX_SKIP_UDEV;
+  else process.env.ILUTEX_SKIP_UDEV = prevSkipUdev;
+  if (prevForceEnable === undefined) delete process.env.ILUTEX_ENABLE_RESTORE;
+  else process.env.ILUTEX_ENABLE_RESTORE = prevForceEnable;
   try {
     delete require.cache[require.resolve(INSTALL_JS)];
   } catch {
@@ -53,13 +53,13 @@ esac
 }
 
 function runCase(name, opts) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'keybackcon-kbc10-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ilutex-kbc10-'));
   const home = path.join(tmp, 'home');
   const binDir = path.join(tmp, 'bin');
   const logPath = path.join(tmp, 'systemctl.log');
-  const fakeBin = path.join(tmp, 'fake-keybackcon');
+  const fakeBin = path.join(tmp, 'fake-ilutex');
   const unitDir = path.join(home, '.config', 'systemd', 'user');
-  const unit = path.join(unitDir, 'keybackcon.service');
+  const unit = path.join(unitDir, 'ilutex.service');
   const oldUnit =
     '[Unit]\nDescription=old\n[Service]\nExecStart=/old/path restore\n[Install]\nWantedBy=default.target\n';
 
@@ -82,8 +82,8 @@ function runCase(name, opts) {
 
     process.env.HOME = home;
     process.env.PATH = `${binDir}:${prevPath || ''}`;
-    process.env.KEYBACKCON_SKIP_UDEV = '1';
-    delete process.env.KEYBACKCON_ENABLE_RESTORE;
+    process.env.ILUTEX_SKIP_UDEV = '1';
+    delete process.env.ILUTEX_ENABLE_RESTORE;
 
     delete require.cache[require.resolve(INSTALL_JS)];
     const { installSystemdUnits } = require(INSTALL_JS);
