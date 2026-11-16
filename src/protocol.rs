@@ -9,6 +9,31 @@ use crate::color::Rgb;
 /// 0x59`), `Usage LampArray` (`0x09 0x01`) y `Collection Application` (`0xA1
 /// 0x01`). USB HID Usage Tables v1.4 §26.
 pub const DEVICE_SIGNATURE: &[u8] = &[0x05, 0x59, 0x09, 0x01, 0xA1, 0x01];
+/// Variable de entorno para sobrescribir la firma HID: `ILUTEX_HID_SIGNATURE`
+/// (hex string, ej: 05590901a101).
+const ENV_HID_SIGNATURE: &str = "ILUTEX_HID_SIGNATURE";
+
+/// Devuelve la firma del dispositivo a usar.
+/// Lee `ILUTEX_HID_SIGNATURE` (hex string) si esta definida; si no, usa `DEVICE_SIGNATURE`.
+/// Formato aceptado: hex con o sin prefijo 0x, longitud par.
+pub fn device_signature() -> Vec<u8> {
+    std::env::var(ENV_HID_SIGNATURE)
+        .ok()
+        .and_then(|s| parse_hex(&s).ok())
+        .unwrap_or_else(|| DEVICE_SIGNATURE.to_vec())
+}
+
+/// Parsea hex string a `Vec<u8>`. Acepta prefijo `0x` opcional.
+fn parse_hex(s: &str) -> Result<Vec<u8>, &'static str> {
+    let s = s.strip_prefix("0x").unwrap_or(s);
+    if !s.len().is_multiple_of(2) {
+        return Err("longitud impar");
+    }
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|_| "hex invalido"))
+        .collect()
+}
 
 /// Subruta sysfs del descriptor de informes del hidraw.
 pub const REPORT_DESCRIPTOR_SUBPATH: &str = "device/report_descriptor";
@@ -284,5 +309,60 @@ mod tests {
         // deja constancia explícita de que PRO-06 no acredita este target.
         let arch = std::env::consts::ARCH;
         eprintln!("PRO-06: target {arch} sin oráculo UAPI genérico acreditado");
+    }
+}
+
+#[cfg(test)]
+mod device_signature_tests {
+    use super::*;
+
+    #[test]
+    fn device_signature_override_env_var() {
+        // Test que verifica que la variable de entorno ILUTEX_HID_SIGNATURE
+        // sobrescribe la firma por defecto.
+        // Usamos TEST_ENV_LOCK para serializar el acceso al entorno.
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        // Test 1: sin env var -> valor por defecto
+        unsafe {
+            std::env::remove_var("ILUTEX_HID_SIGNATURE");
+        }
+        let default = device_signature();
+        assert_eq!(default, DEVICE_SIGNATURE.to_vec());
+
+        // Test 2: con env var válido (hex sin 0x)
+        unsafe {
+            std::env::set_var("ILUTEX_HID_SIGNATURE", "05590901a101");
+        }
+        let overridden = device_signature();
+        assert_eq!(overridden, vec![0x05, 0x59, 0x09, 0x01, 0xA1, 0x01]);
+
+        // Test 3: con env var con prefijo 0x
+        unsafe {
+            std::env::set_var("ILUTEX_HID_SIGNATURE", "0x05590901a101");
+        }
+        let overridden2 = device_signature();
+        assert_eq!(overridden2, vec![0x05, 0x59, 0x09, 0x01, 0xA1, 0x01]);
+
+        // Test 4: env var inválido (longitud impar) -> fallback a default
+        unsafe {
+            std::env::set_var("ILUTEX_HID_SIGNATURE", "abc");
+        }
+        let fallback = device_signature();
+        assert_eq!(fallback, DEVICE_SIGNATURE.to_vec());
+
+        // Test 5: env var inválido (no hex) -> fallback a default
+        unsafe {
+            std::env::set_var("ILUTEX_HID_SIGNATURE", "gggggg");
+        }
+        let fallback2 = device_signature();
+        assert_eq!(fallback2, DEVICE_SIGNATURE.to_vec());
+
+        // Restaurar
+        unsafe {
+            std::env::remove_var("ILUTEX_HID_SIGNATURE");
+        }
     }
 }
