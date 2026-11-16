@@ -1,6 +1,6 @@
 {
   "name": "ilutex",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "iLutex — control cromático del teclado AERO X16 vía HID LampArray, sin dependencias (binario precompilado + instalación automática de servicios)",
   "license": "MIT",
   "type": "commonjs",
