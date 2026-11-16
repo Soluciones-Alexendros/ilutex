@@ -8,8 +8,8 @@ import unittest
 from unittest import mock
 
 from gui.client import (
-    KeybackconClient,
-    KeybackconError,
+    IlutexClient,
+    IlutexError,
     find_binary,
     pid_paths,
     state_paths,
@@ -132,35 +132,35 @@ class TestFindBinary(unittest.TestCase):
 
 class TestRunErrores(unittest.TestCase):
     def test_binario_inexistente(self):
-        cliente = KeybackconClient(binary="/no/existe/ilutex")
-        with self.assertRaises(KeybackconError) as ctx:
+        cliente = IlutexClient(binary="/no/existe/ilutex")
+        with self.assertRaises(IlutexError) as ctx:
             cliente.info()
         self.assertIn("Cannot find the binary", ctx.exception.message)
 
     def test_error_con_stderr(self):
         fake = BinarioFake("#!/bin/sh\necho 'teclado furioso' >&2\nexit 1\n")
-        cliente = KeybackconClient(binary=fake.ruta)
-        with self.assertRaises(KeybackconError) as ctx:
+        cliente = IlutexClient(binary=fake.ruta)
+        with self.assertRaises(IlutexError) as ctx:
             cliente.set_color("ff0000")
         self.assertIn("teclado furioso", ctx.exception.message)
         fake.limpiar()
 
     def test_error_sin_salida(self):
         fake = BinarioFake("#!/bin/sh\nexit 3\n")
-        cliente = KeybackconClient(binary=fake.ruta)
-        with self.assertRaises(KeybackconError) as ctx:
+        cliente = IlutexClient(binary=fake.ruta)
+        with self.assertRaises(IlutexError) as ctx:
             cliente.off()
         self.assertIn("code 3", ctx.exception.message)
         fake.limpiar()
 
     def test_timeout(self):
-        cliente = KeybackconClient(binary="/usr/bin/true")
+        cliente = IlutexClient(binary="/usr/bin/true")
 
         def timeout_run(*_a, **_k):
             raise subprocess.TimeoutExpired(cmd="ilutex", timeout=10)
 
         with mock.patch("gui.client.subprocess.run", side_effect=timeout_run):
-            with self.assertRaises(KeybackconError) as ctx:
+            with self.assertRaises(IlutexError) as ctx:
                 cliente.restore()
         self.assertIn("took too long to respond", ctx.exception.message)
 
@@ -169,19 +169,19 @@ class TestInfoJson(unittest.TestCase):
     def test_json_valido(self):
         datos = {"version": "2.5.0", "lamps": 1, "state": "00ffff", "brightness": 95}
         fake = BinarioFake('#!/bin/sh\necho \'%s\'\n' % json.dumps(datos))
-        cliente = KeybackconClient(binary=fake.ruta)
+        cliente = IlutexClient(binary=fake.ruta)
         self.assertEqual(cliente.info(), datos)
         fake.limpiar()
 
     def test_binario_viejo_sin_json_devuelve_vacio(self):
         fake = BinarioFake("#!/bin/sh\necho 'nº lámparas : 1'\n")
-        cliente = KeybackconClient(binary=fake.ruta)
+        cliente = IlutexClient(binary=fake.ruta)
         self.assertEqual(cliente.info(), {})
         fake.limpiar()
 
     def test_basura_devuelve_vacio(self):
         fake = BinarioFake("#!/bin/sh\necho '{no-es-json'\n")
-        cliente = KeybackconClient(binary=fake.ruta)
+        cliente = IlutexClient(binary=fake.ruta)
         self.assertEqual(cliente.info(), {})
         fake.limpiar()
 
@@ -194,10 +194,10 @@ class TestEstadoYPidfile(unittest.TestCase):
             os.makedirs(dir_state, exist_ok=True)
             with open(os.path.join(dir_state, "state"), "w") as f:
                 f.write("FF7800 140\n")
-            self.assertEqual(KeybackconClient().get_state_file(), ("ff7800", 100))
+            self.assertEqual(IlutexClient().get_state_file(), ("ff7800", 100))
             with open(os.path.join(dir_state, "state"), "w") as f:
                 f.write("00ffff -5\n")
-            self.assertEqual(KeybackconClient().get_state_file(), ("00ffff", 0))
+            self.assertEqual(IlutexClient().get_state_file(), ("00ffff", 0))
         finally:
             env.restaurar()
 
@@ -214,14 +214,14 @@ class TestEstadoYPidfile(unittest.TestCase):
                 f.write("basura sin sentido\n")
             with open(os.path.join(legado, "state"), "w") as f:
                 f.write("ff0000 60\n")
-            self.assertEqual(KeybackconClient().get_state_file(), ("ffffff", 100))
+            self.assertEqual(IlutexClient().get_state_file(), ("ffffff", 100))
         finally:
             env.restaurar()
 
     def test_get_state_file_ausente_devuelve_defaults(self):
         env = EntornoXdg()
         try:
-            self.assertEqual(KeybackconClient().get_state_file(), ("ffffff", 100))
+            self.assertEqual(IlutexClient().get_state_file(), ("ffffff", 100))
         finally:
             env.restaurar()
 
@@ -232,7 +232,7 @@ class TestEstadoYPidfile(unittest.TestCase):
             os.makedirs(legado, exist_ok=True)
             with open(os.path.join(legado, "state"), "w") as f:
                 f.write("ff0000 60\n")
-            self.assertEqual(KeybackconClient().get_state_file(), ("ff0000", 60))
+            self.assertEqual(IlutexClient().get_state_file(), ("ff0000", 60))
         finally:
             env.restaurar()
 
@@ -274,7 +274,7 @@ class TestEstadoYPidfile(unittest.TestCase):
             try:
                 with open(pidfile, "w") as f:
                     f.write("%d\n" % wrapper.pid)
-                encontrado = KeybackconClient().animation_running()
+                encontrado = IlutexClient().animation_running()
                 self.assertEqual(encontrado, wrapper.pid)
             finally:
                 try:
@@ -292,7 +292,7 @@ class TestEstadoYPidfile(unittest.TestCase):
     def test_animation_running_pidfile_ausente(self):
         env = EntornoXdg()
         try:
-            self.assertIsNone(KeybackconClient().animation_running())
+            self.assertIsNone(IlutexClient().animation_running())
         finally:
             env.restaurar()
 
@@ -300,7 +300,7 @@ class TestEstadoYPidfile(unittest.TestCase):
 class TestAnimacionGrupo(unittest.TestCase):
     def test_stop_animation_mata_el_grupo(self):
         fake = BinarioFake("#!/bin/sh\nsleep 5\n")
-        cliente = KeybackconClient(binary=fake.ruta)
+        cliente = IlutexClient(binary=fake.ruta)
         cliente._proc = subprocess.Popen(
             [fake.ruta], start_new_session=True
         )
@@ -317,7 +317,7 @@ class TestAnimacionGrupo(unittest.TestCase):
         fake.limpiar()
 
     def test_stop_animation_idempotente_sin_proceso(self):
-        cliente = KeybackconClient(binary="/no/existe")
+        cliente = IlutexClient(binary="/no/existe")
         cliente.stop_animation()  # no debe lanzar excepción
 
 

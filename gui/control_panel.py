@@ -26,8 +26,8 @@ hex_to_rgb = _colors.hex_to_rgb
 scale_rgb = _colors.scale_rgb
 hsv_to_rgb = _colors.hsv_to_rgb
 _client = load("client")
-KeybackconClient = _client.KeybackconClient
-KeybackconError = _client.KeybackconError
+IlutexClient = _client.IlutexClient
+IlutexError = _client.IlutexError
 find_binary = _client.find_binary
 state_paths = _client.state_paths
 pid_paths = _client.pid_paths
@@ -38,16 +38,16 @@ BIN = find_binary()
 
 
 def get_state():
-    return KeybackconClient().get_state_file()
+    return IlutexClient().get_state_file()
 
 
 def animation_running():
-    return KeybackconClient().animation_running()
+    return IlutexClient().animation_running()
 
 
 def device_info():
     try:
-        return KeybackconClient().info()
+        return IlutexClient().info()
     except Exception:
         log_exc("info del dispositivo")
         return None

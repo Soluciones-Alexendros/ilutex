@@ -558,8 +558,8 @@ mod tests {
                     None => std::env::remove_var("XDG_RUNTIME_DIR"),
                 }
                 match self.prev_writer.take() {
-                    Some(v) => std::env::set_var("KEYBACKCON_WRITER_LOCK", v),
-                    None => std::env::remove_var("KEYBACKCON_WRITER_LOCK"),
+                    Some(v) => std::env::set_var("ILUTEX_WRITER_LOCK", v),
+                    None => std::env::remove_var("ILUTEX_WRITER_LOCK"),
                 }
             }
         }
@@ -588,11 +588,11 @@ mod tests {
         file.set_permissions(fs::Permissions::from_mode(0o660))
             .unwrap();
         let prev_runtime = std::env::var_os("XDG_RUNTIME_DIR");
-        let prev_writer = std::env::var_os("KEYBACKCON_WRITER_LOCK");
+        let prev_writer = std::env::var_os("ILUTEX_WRITER_LOCK");
         // SAFETY: TEST_ENV_LOCK serializa el entorno.
         unsafe {
             std::env::set_var("XDG_RUNTIME_DIR", &dir);
-            std::env::set_var("KEYBACKCON_WRITER_LOCK", &lock);
+            std::env::set_var("ILUTEX_WRITER_LOCK", &lock);
         }
         (
             dir,
@@ -621,10 +621,10 @@ mod tests {
         dest
     }
 
-    /// Hijo que solo duerme cuando el padre fija `KEYBACKCON_ANIM_FIXTURE_SLEEP`.
+    /// Hijo que solo duerme cuando el padre fija `ILUTEX_ANIM_FIXTURE_SLEEP`.
     #[test]
     fn fixture_sleep_child() {
-        let Ok(secs) = std::env::var("KEYBACKCON_ANIM_FIXTURE_SLEEP") else {
+        let Ok(secs) = std::env::var("ILUTEX_ANIM_FIXTURE_SLEEP") else {
             return;
         };
         let n: u64 = secs.parse().unwrap_or(1);
@@ -637,7 +637,7 @@ mod tests {
         // Sueño corto: en sandboxes que bloquean señales no queremos esperar 60 s.
         Command::new(&bin)
             .args(["--exact", "animation::tests::fixture_sleep_child"])
-            .env("KEYBACKCON_ANIM_FIXTURE_SLEEP", secs)
+            .env("ILUTEX_ANIM_FIXTURE_SLEEP", secs)
             .env_remove("RUST_TEST_THREADS")
             .spawn()
             .unwrap()

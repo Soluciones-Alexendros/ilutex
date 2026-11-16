@@ -23,10 +23,10 @@ def find_binary():
     for cand in (
         shutil.which("ilutex"),
         os.path.expanduser("~/.local/bin/ilutex"),
-        shutil.which("keybackcon"),
-        os.path.expanduser("~/.local/bin/keybackcon"),
-        shutil.which("kbd-rgb"),
-        os.path.expanduser("~/.local/bin/kbd-rgb"),
+        shutil.which("keybackcon"),  # legado: binario anterior, compatibilidad
+        os.path.expanduser("~/.local/bin/keybackcon"),  # legado: ruta anterior
+        shutil.which("kbd-rgb"),  # legado: binario anterior, compatibilidad
+        os.path.expanduser("~/.local/bin/kbd-rgb"),  # legado: ruta anterior
     ):
         if cand and os.path.isfile(cand) and os.access(cand, os.X_OK):
             return cand
@@ -167,7 +167,7 @@ def pid_paths():
     )
 
 
-class KeybackconError(Exception):
+class IlutexError(Exception):
     message: str
 
     def __init__(self, message: str):
@@ -175,7 +175,7 @@ class KeybackconError(Exception):
         self.message = message
 
 
-class KeybackconClient:
+class IlutexClient:
     def __init__(self, binary: str | None = None):
         self._bin = binary if binary else find_binary()
         self._proc = None
@@ -189,20 +189,20 @@ class KeybackconClient:
                 timeout=10,
             )
         except FileNotFoundError:
-            raise KeybackconError(
+            raise IlutexError(
                 _("Cannot find the binary ({bin}). Install it first.").format(
                     bin=self._bin
                 )
             )
         except subprocess.TimeoutExpired:
-            raise KeybackconError(_("The keyboard took too long to respond."))
+            raise IlutexError(_("The keyboard took too long to respond."))
         except OSError as e:
-            raise KeybackconError(_("The keyboard did not respond: {e}").format(e=e))
+            raise IlutexError(_("The keyboard did not respond: {e}").format(e=e))
         if proc.returncode != 0:
             err = (proc.stderr or proc.stdout or "").strip()
             if err:
-                raise KeybackconError(err)
-            raise KeybackconError(
+                raise IlutexError(err)
+            raise IlutexError(
                 _("The keyboard did not respond (code {code}).").format(
                     code=proc.returncode
                 )
@@ -253,7 +253,7 @@ class KeybackconClient:
             log_exc("cosechar animación")  # el kernel recogerá el zombie
 
     def info(self) -> dict:
-        """`info --json` como dict. Lanza KeybackconError si el binario falla.
+        """`info --json` como dict. Lanza IlutexError si el binario falla.
 
         Si el binario es viejo y no habla JSON, devuelve {} para que la
         interfaz muestre «desconocido» en vez de romperse.
@@ -283,13 +283,13 @@ class KeybackconClient:
                 start_new_session=True,
             )
         except FileNotFoundError:
-            raise KeybackconError(
+            raise IlutexError(
                 _("Cannot find the binary ({bin}). Install it first.").format(
                     bin=self._bin
                 )
             )
         except OSError as e:
-            raise KeybackconError(_("The keyboard did not respond: {e}").format(e=e))
+            raise IlutexError(_("The keyboard did not respond: {e}").format(e=e))
 
     def stop(self) -> str:
         self.stop_animation()

@@ -1,16 +1,16 @@
 # Manifiesto de producto instalable (unidad 8).
 # Una ruta por línea; los artefactos (.deb, tarball, AUR) deben incluirlos.
-usr/bin/keybackcon
-usr/bin/keybackcon-gui
-usr/share/keybackcon/gui/
-usr/share/applications/keybackcon.desktop
-usr/share/icons/hicolor/scalable/apps/keybackcon.svg
-usr/lib/udev/rules.d/70-keybackcon.rules
-usr/lib/tmpfiles.d/keybackcon.conf
-usr/lib/sysusers.d/keybackcon.conf
-usr/lib/systemd/user/keybackcon.service
-usr/lib/systemd/user/keybackcon-animation@.service
-usr/share/locale/es/LC_MESSAGES/keybackcon.mo
-usr/share/locale/en/LC_MESSAGES/keybackcon.mo
-usr/share/glib-2.0/schemas/org.iniciativas.keybackcon.gschema.xml
-usr/share/licenses/keybackcon/LICENSE
+usr/bin/ilutex
+usr/bin/ilutex-gui
+usr/share/ilutex/gui/
+usr/share/applications/ilutex.desktop
+usr/share/icons/hicolor/scalable/apps/ilutex.svg
+usr/lib/udev/rules.d/70-ilutex.rules
+usr/lib/tmpfiles.d/ilutex.conf
+usr/lib/sysusers.d/ilutex.conf
+usr/lib/systemd/user/ilutex.service
+usr/lib/systemd/user/ilutex-animation@.service
+usr/share/locale/es/LC_MESSAGES/ilutex.mo
+usr/share/locale/en/LC_MESSAGES/ilutex.mo
+usr/share/glib-2.0/schemas/org.alexendros.ilutex.gschema.xml
+usr/share/licenses/ilutex/LICENSE

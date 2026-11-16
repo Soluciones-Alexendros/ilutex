@@ -444,14 +444,14 @@ fn cmd_brightness(change: BrightnessChange) -> Result<(), Error> {
     Ok(())
 }
 
-/// Espera el fichero «go» de `KEYBACKCON_TEST_BRIGHTNESS_BARRIER` tras anunciar listo.
+/// Espera el fichero «go» de `ILUTEX_TEST_BRIGHTNESS_BARRIER` tras anunciar listo.
 /// Solo existe bajo `cfg(test)`; producción no la compila.
 #[cfg(test)]
 fn wait_brightness_test_barrier() {
     use std::path::PathBuf;
     use std::time::{Duration, Instant};
 
-    let Ok(go) = std::env::var("KEYBACKCON_TEST_BRIGHTNESS_BARRIER") else {
+    let Ok(go) = std::env::var("ILUTEX_TEST_BRIGHTNESS_BARRIER") else {
         return;
     };
     let go = PathBuf::from(go);
@@ -582,8 +582,8 @@ mod tests {
                     None => std::env::remove_var("XDG_RUNTIME_DIR"),
                 }
                 match self.prev_writer.take() {
-                    Some(v) => std::env::set_var("KEYBACKCON_WRITER_LOCK", v),
-                    None => std::env::remove_var("KEYBACKCON_WRITER_LOCK"),
+                    Some(v) => std::env::set_var("ILUTEX_WRITER_LOCK", v),
+                    None => std::env::remove_var("ILUTEX_WRITER_LOCK"),
                 }
             }
         }
@@ -621,12 +621,12 @@ mod tests {
             .unwrap();
         let prev_state = std::env::var_os("XDG_STATE_HOME");
         let prev_runtime = std::env::var_os("XDG_RUNTIME_DIR");
-        let prev_writer = std::env::var_os("KEYBACKCON_WRITER_LOCK");
+        let prev_writer = std::env::var_os("ILUTEX_WRITER_LOCK");
         // SAFETY: TEST_ENV_LOCK serializa el entorno de tests.
         unsafe {
             std::env::set_var("XDG_STATE_HOME", &state);
             std::env::set_var("XDG_RUNTIME_DIR", &runtime);
-            std::env::set_var("KEYBACKCON_WRITER_LOCK", &writer);
+            std::env::set_var("ILUTEX_WRITER_LOCK", &writer);
         }
         (
             root,
@@ -643,7 +643,7 @@ mod tests {
     /// Hijo del patrón `writer.rs`: `--exact` + env. Solo actúa con la marca.
     #[test]
     fn brightness_hijo_concurrencia() {
-        if std::env::var_os("KEYBACKCON_BRIGHTNESS_CHILD").is_none() {
+        if std::env::var_os("ILUTEX_BRIGHTNESS_CHILD").is_none() {
             return;
         }
         match cmd_brightness(BrightnessChange::Up(10)) {
@@ -651,7 +651,7 @@ mod tests {
             Err(e) => {
                 // `process::exit` salta el flush del capture de libtest: volcar
                 // el error junto a la barrera para que el padre lo muestre.
-                if let Ok(go) = std::env::var("KEYBACKCON_TEST_BRIGHTNESS_BARRIER") {
+                if let Ok(go) = std::env::var("ILUTEX_TEST_BRIGHTNESS_BARRIER") {
                     let err =
                         PathBuf::from(go).with_file_name(format!("err-{}", std::process::id()));
                     let _ = fs::write(&err, format!("brightness hijo: {e}\n"));
@@ -666,16 +666,16 @@ mod tests {
     fn spawn_brightness_hijo(state: &Path, runtime: &Path, go: &Path) -> std::process::Child {
         let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
         cmd.args(["--exact", "cli::tests::brightness_hijo_concurrencia"])
-            .env("KEYBACKCON_BRIGHTNESS_CHILD", "1")
-            .env("KEYBACKCON_TEST_BRIGHTNESS_BARRIER", go)
+            .env("ILUTEX_BRIGHTNESS_CHILD", "1")
+            .env("ILUTEX_TEST_BRIGHTNESS_BARRIER", go)
             .env("XDG_STATE_HOME", state)
             .env("XDG_RUNTIME_DIR", runtime)
             .env_remove("RUST_TEST_THREADS")
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         // El candado HID del padre no siempre se hereda en todos los runners.
-        if let Ok(lock) = std::env::var("KEYBACKCON_WRITER_LOCK") {
-            cmd.env("KEYBACKCON_WRITER_LOCK", lock);
+        if let Ok(lock) = std::env::var("ILUTEX_WRITER_LOCK") {
+            cmd.env("ILUTEX_WRITER_LOCK", lock);
         }
         cmd.spawn().expect("hijo de brillo")
     }
@@ -714,7 +714,7 @@ mod tests {
         }
         let mut anim = std::process::Command::new(&anim_bin)
             .args(["--exact", "animation::tests::fixture_sleep_child"])
-            .env("KEYBACKCON_ANIM_FIXTURE_SLEEP", "8")
+            .env("ILUTEX_ANIM_FIXTURE_SLEEP", "8")
             .env_remove("RUST_TEST_THREADS")
             .spawn()
             .expect("animación falsa");
