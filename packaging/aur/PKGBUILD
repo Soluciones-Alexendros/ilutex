@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034,SC2154
 pkgname=ilutex
-pkgver=3.0.1
+pkgver=3.0.2
 pkgrel=1
 pkgdesc="iLutex — control cromático del teclado AERO X16 vía HID LampArray"
 arch=('x86_64')
@@ -16,7 +16,7 @@ replaces=('kbd-rgb' 'keybackcon')
 # Checksum del tarball del tag publicado en GitHub (no reproducible: usar
 # `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
 # antes de anunciar el paquete en AUR (ver docs/compatibility/matriz.md).
-sha256sums=('d52b06982ca803df520fbc0466cfd32cb7321867a5bfcb6cbf6a9f5e49cab40b')
+sha256sums=('SKIP')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 
 build() {

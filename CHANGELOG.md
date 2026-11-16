@@ -4,6 +4,16 @@ La fuente de verdad son los tags y `git-cliff`. Resumen:
 
 ## [Unreleased]
 
+## [3.0.2] — 2026-11-16
+- **Arreglo del paquete npm.** Los índices de `ilutex-linux-x64` e
+  `ilutex-linux-arm64` exportaban `bin/keybackcon` (nombre anterior al
+  renombrado), así que el postinstalador no encontraba el binario y se
+  saltaba udev y las unidades de usuario con un aviso engañoso. Ahora
+  exportan `bin/ilutex`, que es lo que declara `files`.
+- Nuevo `scripts/check-npm-platforms.py`, enganchado a `make smoke` y al job
+  `quality`, que falla si un índice de plataforma no coincide con el
+  binario declarado o menciona un nombre anterior.
+
 ## [3.0.1] — 2026-11-16
 - **Otros teclados LampArray.** `ILUTEX_VID`, `ILUTEX_PID` e
   `ILUTEX_HID_SIGNATURE` sobrescriben la detección del AERO X16 sin
