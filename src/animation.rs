@@ -292,6 +292,8 @@ fn pidfd_open(pid: i32) -> Option<OwnedFd> {
         if fd < 0 {
             return None;
         }
+        // `fd` es i64 ≥ 0 (`pidfd_open` devuelve fd válido o -errno); cabe en `RawFd` (i32 en Linux).
+        // [`clippy::cast_possible_truncation`]: fd < 2^31 en práctica; kernel limita fds.
         #[allow(clippy::cast_possible_truncation)]
         let raw = fd as RawFd;
         // SAFETY: fd exclusivo de pidfd_open.
@@ -512,6 +514,9 @@ pub fn run_animation(mode: &str, fps: u64) -> io::Result<()> {
             } else {
                 let k = (1.0 - (t * std::f64::consts::TAU / 4.0).cos()) / 2.0;
                 let factor = (8.0 + k * 92.0) * (f64::from(pct) / 100.0);
+                // `factor` clamp(0.0, 100.0) → 0–100; cast a u32 seguro.
+                // [`clippy::cast_possible_truncation`]: valor ≤ 100.0 tras clamp.
+                // [`clippy::cast_sign_loss`]: clamp garantiza ≥ 0.0.
                 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                 let pct_factor = factor.clamp(0.0, 100.0) as u32;
                 scale(base, pct_factor)

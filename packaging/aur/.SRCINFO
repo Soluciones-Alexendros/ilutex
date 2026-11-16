@@ -1,0 +1,22 @@
+pkgbase = ilutex
+	pkgdesc = iLutex — control cromático del teclado AERO X16 vía HID LampArray
+	pkgver = 3.0.2
+	pkgrel = 1
+	url = https://github.com/Soluciones-Alexendros/ilutex
+	arch = x86_64
+	license = MIT
+	makedepends = cargo
+	makedepends = gettext
+	optdepends = python-gobject: panel gráfico ilutex-gui
+	optdepends = gtk4: panel gráfico ilutex-gui
+	optdepends = libadwaita: panel gráfico ilutex-gui
+	optdepends = libayatana-appindicator: indicador de bandeja para ilutex-gui
+	optdepends = python-cairo: indicador de bandeja para ilutex-gui
+	conflicts = kbd-rgb
+	conflicts = keybackcon
+	replaces = kbd-rgb
+	replaces = keybackcon
+	source = ilutex-3.0.2.tar.gz::https://github.com/Soluciones-Alexendros/ilutex/archive/refs/tags/v3.0.2.tar.gz
+	sha256sums = 14d932c71fd47975b41c9a184c097955ecefee27a15d4e13e959140e28553641
+
+pkgname = ilutex

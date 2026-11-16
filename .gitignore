@@ -13,3 +13,7 @@ npm/platforms/*/bin/
 /gui/locale/
 # Planificación local (tasks/plan.md, tasks/todo.md)
 /tasks/
+
+# Artefactos de empaquetado npm
+npm/node_modules/
+npm/*.tgz

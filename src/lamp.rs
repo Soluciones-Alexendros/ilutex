@@ -9,8 +9,7 @@ use std::path::{Path, PathBuf};
 
 use crate::protocol::{
     autonomous_report, color_report, hid_ioctl_request, parse_attrs, ATTRS_REPORT_LEN,
-    DEVICE_SIGNATURE, HIDIOCGFEATURE_NR, HIDIOCSFEATURE_NR, REPORT_DESCRIPTOR_SUBPATH,
-    REPORT_ID_ATTRS,
+    HIDIOCGFEATURE_NR, HIDIOCSFEATURE_NR, REPORT_DESCRIPTOR_SUBPATH, REPORT_ID_ATTRS,
 };
 
 // SAFETY: `ioctl` es libc con ABI estable.
@@ -24,6 +23,38 @@ pub const DEVICE_GONE_MSG: &str = "el teclado parece haberse desconectado";
 /// VID/PID del AERO X16 admitido (coinciden con la regla udev).
 pub const SUPPORTED_VID: u16 = 0x0414;
 pub const SUPPORTED_PID: u16 = 0x8104;
+/// Variables de entorno para sobrescribir VID/PID.
+#[allow(dead_code)]
+const ENV_VID: &str = "ILUTEX_VID";
+#[allow(dead_code)]
+const ENV_PID: &str = "ILUTEX_PID";
+
+/// Devuelve el VID a usar. Lee `ILUTEX_VID` (hex u16) si esta definida; si no, `SUPPORTED_VID`.
+/// Formato aceptado: hex con o sin prefijo 0x (ej: 0414 o 0x0414).
+#[allow(dead_code)]
+pub fn supported_vid() -> u16 {
+    std::env::var(ENV_VID)
+        .ok()
+        .and_then(|s| parse_u16_hex(&s).ok())
+        .unwrap_or(SUPPORTED_VID)
+}
+
+/// Devuelve el PID a usar. Lee `ILUTEX_PID` (hex u16) si esta definida; si no, `SUPPORTED_PID`.
+/// Formato aceptado: hex con o sin prefijo 0x (ej: 8104 o 0x8104).
+#[allow(dead_code)]
+pub fn supported_pid() -> u16 {
+    std::env::var(ENV_PID)
+        .ok()
+        .and_then(|s| parse_u16_hex(&s).ok())
+        .unwrap_or(SUPPORTED_PID)
+}
+
+/// Parsea hex string a u16. Acepta prefijo 0x opcional.
+#[allow(dead_code)]
+fn parse_u16_hex(s: &str) -> Result<u16, &'static str> {
+    let s = s.strip_prefix("0x").unwrap_or(s);
+    u16::from_str_radix(s, 16).map_err(|_| "u16 hex invalido")
+}
 
 const ENODEV: i32 = 19;
 const ENXIO: i32 = 6;
@@ -205,9 +236,8 @@ impl Lamp<HidRaw> {
             }
             let desc = e.path().join(REPORT_DESCRIPTOR_SUBPATH);
             if let Ok(d) = fs::read(&desc) {
-                if d.windows(DEVICE_SIGNATURE.len())
-                    .any(|w| w == DEVICE_SIGNATURE)
-                {
+                let sig = crate::protocol::device_signature();
+                if d.windows(sig.len()).any(|w| w == sig.as_slice()) {
                     found.push(PathBuf::from(format!("/dev/{name}")));
                 }
             }
@@ -374,5 +404,94 @@ mod tests {
         let mut lamp = Lamp::with_transport(fake);
         let err = lamp.attrs().unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    }
+}
+
+#[cfg(test)]
+mod vid_pid_override_tests {
+    use super::*;
+
+    #[test]
+    fn vid_override_env_var() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        // Test 1: sin env var -> valor por defecto
+        unsafe {
+            std::env::remove_var("ILUTEX_VID");
+        }
+        assert_eq!(supported_vid(), SUPPORTED_VID);
+
+        // Test 2: con env var valido (hex sin 0x)
+        unsafe {
+            std::env::set_var("ILUTEX_VID", "1234");
+        }
+        assert_eq!(supported_vid(), 0x1234);
+
+        // Test 3: con env var con prefijo 0x
+        unsafe {
+            std::env::set_var("ILUTEX_VID", "0x1234");
+        }
+        assert_eq!(supported_vid(), 0x1234);
+
+        // Test 4: env var invalido -> fallback a default
+        unsafe {
+            std::env::set_var("ILUTEX_VID", "gggg");
+        }
+        assert_eq!(supported_vid(), SUPPORTED_VID);
+
+        unsafe {
+            std::env::remove_var("ILUTEX_VID");
+        }
+    }
+
+    #[test]
+    fn pid_override_env_var() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        // Test 1: sin env var -> valor por defecto
+        unsafe {
+            std::env::remove_var("ILUTEX_PID");
+        }
+        assert_eq!(supported_pid(), SUPPORTED_PID);
+
+        // Test 2: con env var valido (hex sin 0x)
+        unsafe {
+            std::env::set_var("ILUTEX_PID", "5678");
+        }
+        assert_eq!(supported_pid(), 0x5678);
+
+        // Test 3: con env var con prefijo 0x
+        unsafe {
+            std::env::set_var("ILUTEX_PID", "0x5678");
+        }
+        assert_eq!(supported_pid(), 0x5678);
+
+        // Test 4: env var invalido -> fallback a default
+        unsafe {
+            std::env::set_var("ILUTEX_PID", "zzzz");
+        }
+        assert_eq!(supported_pid(), SUPPORTED_PID);
+
+        unsafe {
+            std::env::remove_var("ILUTEX_PID");
+        }
+    }
+
+    #[test]
+    fn default_values_sin_env() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        unsafe {
+            std::env::remove_var("ILUTEX_VID");
+            std::env::remove_var("ILUTEX_PID");
+        }
+        assert_eq!(supported_vid(), SUPPORTED_VID);
+        assert_eq!(supported_pid(), SUPPORTED_PID);
     }
 }

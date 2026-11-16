@@ -88,6 +88,9 @@ pub fn scale((r, g, b): Rgb, pct: u32) -> Rgb {
 }
 
 /// Convierte HSV (`h` en grados, `s` y `v` en 0–1) a `Rgb`.
+/// `h` se trunca a u32 0–359 (match sectors 0–5); casts acotados por dominio HSV.
+/// `clippy::cast_possible_truncation`: `(h as u32)` seguro porque `h < 360.0` validado.
+/// `clippy::cast_sign_loss`: `h >= 0.0` por precondición; sectores 0–5 son no-negativos.
 #[allow(
     clippy::many_single_char_names,
     clippy::cast_possible_truncation,
