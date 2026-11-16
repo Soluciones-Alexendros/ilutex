@@ -41,6 +41,8 @@ jobs:
         run: python3 -m py_compile gui/*.py
       - name: Paquetes npm de plataforma
         run: python3 scripts/check-npm-platforms.py
+      - name: Sin residuos del nombre anterior
+        run: python3 scripts/check-legacy-names.py
       - name: Catálogos i18n
         run: |
           set -euo pipefail
