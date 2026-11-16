@@ -13,10 +13,10 @@ optdepends=('python-gobject: panel gráfico ilutex-gui' 'gtk4: panel gráfico il
 makedepends=('cargo' 'gettext')
 conflicts=('kbd-rgb' 'keybackcon')
 replaces=('kbd-rgb' 'keybackcon')
-# Checksum del tarball del tag publicado en GitHub (no reproducible: usar
-# `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
+# Checksum del tarball del tag v3.0.2 publicado en GitHub (no reproducible:
+# usar `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
 # antes de anunciar el paquete en AUR (ver docs/compatibility/matriz.md).
-sha256sums=('SKIP')
+sha256sums=('14d932c71fd47975b41c9a184c097955ecefee27a15d4e13e959140e28553641')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 
 build() {
