@@ -4,6 +4,16 @@ La fuente de verdad son los tags y `git-cliff`. Resumen:
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-11-17
+- **Instalación offline.** `ILUTEX_ROOT=/ruta ./scripts/install.sh` escenifica
+  los ficheros root (udev, sysusers, tmpfiles) y el candado `run/ilutex/writer.lock`
+  (modos `0770`/`0660`) en un root alternativo, sin sudo, sin `udevadm` y sin
+  depender de systemd: pensado para contenedores, chroots e imágenes. La
+  instalación viva no cambia.
+- **Instalador más legible.** Los bloques repetitivos de `sudo install` pasan a
+  `install_root_file`/`run_root`/`stage_writer_lock` y la sección root a
+  `install_root_files()`. El smoke cubre el árbol offline.
+
 ## [3.0.4] — 2026-11-17
 - **La bandeja la gestiona el instalador.** Nueva unidad de usuario
   `ilutex-tray.service` (`ilutex-gui --tray`), única fuente de arranque: el
