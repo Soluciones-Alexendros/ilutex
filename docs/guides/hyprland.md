@@ -3,7 +3,7 @@
 ### Propósito
 
 Integración de sesión Wayland en Hyprland **sin** editar automáticamente
-`hyprland.conf` ni Waybar. Copia solo lo que necesites.
+`hyprland.conf` ni la barra del escritorio. Copia solo lo que necesites.
 
 Estado: **experimental** hasta completar los perfiles HY-A…HY-D con evidencias
 registradas. Ver [`docs/compatibility/matriz.md`](../compatibility/matriz.md).
@@ -12,8 +12,8 @@ registradas. Ver [`docs/compatibility/matriz.md`](../compatibility/matriz.md).
 
 | Perfil | Ventana | Bandeja | Arranque |
 |---|---|---|---|
-| HY-A · UWSM + Waybar/tray | Wayland nativo | Indicador | Un mecanismo de sesión |
-| HY-B · sin UWSM + Waybar/tray | Wayland nativo | Indicador | Manual u opt-in documentado |
+| HY-A · UWSM + bandeja del escritorio | Wayland nativo | Indicador | Un mecanismo de sesión |
+| HY-B · sin UWSM + bandeja del escritorio | Wayland nativo | Indicador | Manual u opt-in documentado |
 | HY-C · sin host de bandeja | Completa | No | Manual; aviso si falta bandeja |
 | HY-D · sin agente polkit | Completa si hay permisos | Según host | Reparación de permisos explicada |
 
@@ -28,21 +28,36 @@ ilutex-gui
 ilutex-gui --tray
 ```
 
-## Waybar (módulo tray)
+## Bandeja: usa la que ya trae tu escritorio
 
-El módulo `tray` de Waybar debe estar en **tu** configuración; no sustituimos
-el archivo. Ejemplo a fusionar (ajusta a tu versión de Waybar):
+No instalamos ni configuramos una segunda barra: el icono LED es un
+`StatusNotifierItem` (Ayatana) y lo pinta el host de bandeja que ya tengas.
 
-```jsonc
-"modules-right": ["tray", "clock"],
-"tray": {
-  "icon-size": 18,
-  "spacing": 8
-}
+### Omarchy (Quickshell)
+
+La barra de Omarchy es **Quickshell**, no Waybar. El icono aparece en el
+widget `omarchy.tray` de la sección derecha, y el desplegable nativo
+(colores, brillo, animaciones y "Open window") sale del propio indicador.
+
+Comprueba que el widget esté en la barra:
+
+```bash
+grep -q omarchy.tray ~/.config/omarchy/shell.json && echo "tray OK"
+# si falta:
+omarchy bar add omarchy.tray --section right
 ```
 
-Si reinicias Waybar con Ilutex ya en marcha, el indicador debe
-re-registrarse; si no hay host, abre la ventana (`ilutex-gui`).
+No hace falta Waybar instalado: si está corriendo una segunda barra, es un
+duplicado. Detén la ajena (`pkill waybar`) y deja la de Omarchy.
+
+### Hyprland sin Omarchy
+
+Necesita un host StatusNotifier: Waybar con un módulo `tray`, o Quickshell.
+Sin host, la ventana (`ilutex-gui`) sigue siendo completa; solo falta el icono.
+
+> **Nota:** el icono se renderiza a 64×64 con canal alfa en
+> `~/.cache/ilutex/tray-<color>-<modo>.png`; el host lo escala a su tamaño
+> (≈20 px) sin perder calidad.
 
 ## UWSM y sin UWSM
 
