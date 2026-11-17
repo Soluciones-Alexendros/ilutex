@@ -30,19 +30,19 @@ pkg_hint() {
   case "${mgr}:$1" in
     apt:gettext)    echo "sudo apt install gettext" ;;
     apt:glib)       echo "sudo apt install libglib2.0-bin" ;;
-    apt:tray)       echo "sudo apt install gir1.2-ayatanaappindicator3-0.1 python3-cairo" ;;
+    apt:tray)       echo "sudo apt install gir1.2-ayatanaappindicator3-0.1 python3-cairo gnome-shell-extension-appindicator" ;;
     pacman:gettext) echo "sudo pacman -S gettext" ;;
     pacman:glib)    echo "sudo pacman -S glib2" ;;
     pacman:tray)    echo "sudo pacman -S libayatana-appindicator python-cairo" ;;
     dnf:gettext)    echo "sudo dnf install gettext" ;;
     dnf:glib)       echo "sudo dnf install glib2" ;;
-    dnf:tray)       echo "sudo dnf install libayatana-appindicator-gtk3 python3-cairo" ;;
+    dnf:tray)       echo "sudo dnf install libayatana-appindicator-gtk3 python3-cairo gnome-shell-extension-appindicator" ;;
     zypper:gettext) echo "sudo zypper install gettext" ;;
     zypper:glib)    echo "sudo zypper install glib2" ;;
-    zypper:tray)    echo "sudo zypper install libayatana-appindicator3-1 python3-cairo" ;;
+    zypper:tray)    echo "sudo zypper install libayatana-appindicator3-1 python3-cairo gnome-shell-extension-appindicator" ;;
     *:gettext)      echo "instala gettext con tu gestor de paquetes" ;;
     *:glib)         echo "instala glib2 (glib-compile-schemas) con tu gestor de paquetes" ;;
-    *:tray)         echo "instala AyatanaAppIndicator3 y pycairo con tu gestor de paquetes" ;;
+    *:tray)         echo "instala AyatanaAppIndicator3, pycairo y gnome-shell-extension-appindicator con tu gestor de paquetes" ;;
     *)              echo "instala '$1' con tu gestor de paquetes" ;;
   esac
 }
@@ -208,16 +208,26 @@ for d in "${XDG_STATE_HOME:-${HOME}/.local/state}" "${HOME}/.local/state"; do
   if [ -f "$d/keybackcon/state" ] && [ ! -f "$d/ilutex/state" ]; then
     mkdir -p "$d/ilutex"
     cp "$d/keybackcon/state" "$d/ilutex/state"
-    echo "    migrado $d/keybackcon/state -> $d/ilutex/state"
+    echo "    migrado $d/kbd-rgb/state -> $d/ilutex/state"
     break
   fi
 done
 
 echo "==> ilutex: comprobar dependencias de la GUI y la bandeja"
+# El binario necesita un Python con PyGObject: el primero que lo tenga.
+PY_GTK=""
+for cand in python3 /usr/bin/python3; do
+  command -v "$cand" >/dev/null 2>&1 || continue
+  if "$cand" -c 'import gi' >/dev/null 2>&1; then
+    PY_GTK="$cand"
+    break
+  fi
+done
+[ -n "$PY_GTK" ] || PY_GTK=python3
 tray_ok=1
-python3 -c 'import gi; gi.require_version("Gtk", "3.0"); gi.require_version("AyatanaAppIndicator3", "0.1"); from gi.repository import AyatanaAppIndicator3; import cairo' >/dev/null 2>&1 || tray_ok=0
+"$PY_GTK" -c 'import gi; gi.require_version("Gtk", "3.0"); gi.require_version("AyatanaAppIndicator3", "0.1"); from gi.repository import AyatanaAppIndicator3; import cairo' >/dev/null 2>&1 || tray_ok=0
 gui_ok=1
-python3 -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1"); from gi.repository import Gtk, Adw' >/dev/null 2>&1 || gui_ok=0
+"$PY_GTK" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1"); from gi.repository import Gtk, Adw' >/dev/null 2>&1 || gui_ok=0
 if [ "$gui_ok" = 0 ]; then
   echo "    aviso: la ventana no arrancará hasta instalar sus dependencias" >&2
   case "$(pkg_manager)" in
@@ -230,6 +240,36 @@ fi
 if [ "$tray_ok" = 0 ]; then
   echo "    aviso: la bandeja (--tray) no estará disponible hasta instalar sus dependencias" >&2
   echo "    pista: $(pkg_hint tray)" >&2
+fi
+
+# Host de bandeja según el escritorio (nunca instalamos una segunda barra).
+host_ok=1
+if [ -d /usr/share/omarchy ]; then
+  echo "==> ilutex: Omarchy detectado — la bandeja la pinta su shell (Quickshell)"
+  if [ -f "${HOME}/.config/omarchy/shell.json" ] && ! grep -q "omarchy.tray" "${HOME}/.config/omarchy/shell.json"; then
+    echo "    aviso: la barra no tiene el widget de bandeja" >&2
+    echo "    pista: omarchy bar add omarchy.tray --section right" >&2
+    host_ok=0
+  else
+    echo "    el icono aparece en el widget omarchy.tray de la barra"
+  fi
+elif [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "Hyprland" ]; then
+  echo "==> ilutex: Hyprland sin Omarchy — hace falta un host StatusNotifier"
+  if ! command -v waybar >/dev/null 2>&1 && ! command -v quickshell >/dev/null 2>&1; then
+    echo "    aviso: sin waybar ni quickshell, el icono de bandeja no se verá" >&2
+    echo "    pista: instala waybar con un módulo 'tray' en su config" >&2
+    host_ok=0
+  fi
+fi
+
+# Extensión GNOME solo fuera de Omarchy/Hyprland (allí la bandeja es del shell).
+if [ "$tray_ok" = 0 ] && [ "$host_ok" = 1 ] && [ "$(pkg_manager)" = "pacman" ] && [ ! -d /usr/share/omarchy ] && [ "${XDG_CURRENT_DESKTOP:-}" != "Hyprland" ]; then
+  echo "==> ilutex: instalar gnome-shell-extension-appindicator (root)"
+  if sudo pacman -S --needed --noconfirm gnome-shell-extension-appindicator; then
+    echo "==> ilutex: extensión AppIndicator instalada; recarga GNOME Shell (Alt+F2 \"r\" + Enter) o reinicia sesión" >&2
+  else
+    echo "    aviso: no se pudo instalar gnome-shell-extension-appindicator" >&2
+  fi
 fi
 
 if id -nG "${USER}" 2>/dev/null | tr ' ' '\n' | grep -qx ilutex; then
