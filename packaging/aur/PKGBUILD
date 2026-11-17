@@ -16,7 +16,7 @@ replaces=('kbd-rgb' 'keybackcon')
 # Checksum del tarball del tag v3.0.2 publicado en GitHub (no reproducible:
 # usar `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
 # antes de anunciar el paquete en AUR (ver docs/compatibility/matriz.md).
-sha256sums=('SKIP')
+sha256sums=('ec533c0262bffe2288d6bd45d299c9fd1d34aafeb9ed882e4f10b07680d282e0')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 
 build() {
