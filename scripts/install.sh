@@ -53,6 +53,141 @@ in_ilutex_group() {
   id -nG "${USER}" 2>/dev/null | tr ' ' '\n' | grep -qx ilutex
 }
 
+# Copia un fichero root con `install -D`. En instalación viva usa sudo; en
+# modo offline (stage_root) escribe bajo el root alternativo como este usuario.
+# Devuelve 0/1 y, al fallar, imprime el error para que el llamante lo registre.
+install_root_file() {
+  local src="$1" dst="$2" label="$3"
+  if [ -n "$stage_root" ]; then
+    if ! install -D -m644 "$src" "${stage_root}${dst}"; then
+      echo "    error: no se pudo instalar ${label}" >&2
+      return 1
+    fi
+  elif ! sudo install -D -m644 "$src" "$dst"; then
+    echo "    error: no se pudo instalar ${label}" >&2
+    return 1
+  fi
+}
+
+# Ejecuta un comando bajo sudo. Devuelve 0/1 y, al fallar, imprime el error.
+run_root() {
+  local label="$1"
+  shift
+  if ! sudo "$@"; then
+    echo "    error: ${label} falló" >&2
+    return 1
+  fi
+}
+
+# Crea el candado en el root offline, sin chown: la propiedad root:ilutex la
+# fija después quien instale el root como root. Funciona sin systemd.
+stage_writer_lock() {
+  install -d -m770 "$stage_root/run/ilutex"
+  install -m660 /dev/null "$stage_root/run/ilutex/writer.lock"
+}
+
+# Modo offline: si ILUTEX_ROOT es una ruta absoluta, los ficheros root y el
+# candado se instalan ahí (sin sudo ni systemd/udev vivos); los pasos live-only
+# (udevadm, chequeo de /run) se omiten. Vacío o relativo → instalación viva.
+stage_root=""
+if [ -n "${ILUTEX_ROOT:-}" ]; then
+  case "$ILUTEX_ROOT" in
+    /*) stage_root="$ILUTEX_ROOT" ;;
+    *) echo "    aviso: ILUTEX_ROOT debe ser absoluta; se ignora" >&2 ;;
+  esac
+fi
+
+install_root_files() {
+  echo "==> ilutex: regla udev (opcional, root)"
+  if [ "${ILUTEX_SKIP_UDEV:-0}" = "1" ]; then
+    echo "    omitida (ILUTEX_SKIP_UDEV=1)"
+  else
+    udev_ok=1
+    install_root_file \
+      "${REPO_DIR}/packaging/udev/70-ilutex.rules" \
+      /etc/udev/rules.d/70-ilutex.rules \
+      "udev/70-ilutex.rules" || udev_ok=0
+    if [ -z "$stage_root" ]; then
+      run_root "udevadm control --reload" udevadm control --reload || udev_ok=0
+      run_root "udevadm trigger" udevadm trigger --subsystem-match=hidraw || udev_ok=0
+    fi
+    if [ "$udev_ok" = 1 ]; then
+      echo "==> ilutex: regla udev instalada (root)"
+    else
+      echo "==> ilutex: regla udev incompleta" >&2
+    fi
+  fi
+
+  echo "==> ilutex: candado de escritura (root)"
+  writer_lock_ok=1
+  install_root_file \
+    "${REPO_DIR}/packaging/sysusers.d/ilutex.conf" \
+    /usr/lib/sysusers.d/ilutex.conf \
+    "sysusers.d/ilutex.conf" || writer_lock_ok=0
+  install_root_file \
+    "${REPO_DIR}/packaging/tmpfiles.d/ilutex.conf" \
+    /usr/lib/tmpfiles.d/ilutex.conf \
+    "tmpfiles.d/ilutex.conf" || writer_lock_ok=0
+  if [ -n "$stage_root" ]; then
+    # Offline: el grupo lo crea systemd-sysusers si está (best-effort); el candado
+    # no depende de ello porque la propiedad se fija al instalar como root.
+    if command -v systemd-sysusers >/dev/null 2>&1; then
+      systemd-sysusers --root="$stage_root" ilutex.conf >/dev/null 2>&1 || true
+    fi
+    stage_writer_lock
+  else
+    if command -v systemd-sysusers >/dev/null 2>&1; then
+      run_root "systemd-sysusers ilutex.conf" systemd-sysusers ilutex.conf || writer_lock_ok=0
+    else
+      echo "    aviso: systemd-sysusers no disponible; crea el grupo ilutex a mano" >&2
+      writer_lock_ok=0
+    fi
+    if command -v systemd-tmpfiles >/dev/null 2>&1; then
+      run_root "systemd-tmpfiles --create ilutex.conf" systemd-tmpfiles --create ilutex.conf || writer_lock_ok=0
+    else
+      echo "    aviso: systemd-tmpfiles no disponible; crea /run/ilutex a mano" >&2
+      writer_lock_ok=0
+    fi
+  fi
+  if [ -n "$stage_root" ]; then
+    if [ ! -d "$stage_root/run/ilutex" ] || [ ! -e "$stage_root/run/ilutex/writer.lock" ]; then
+      echo "    error: falta run/ilutex/writer.lock en ILUTEX_ROOT" >&2
+      writer_lock_ok=0
+    fi
+  else
+    if [ ! -d /run/ilutex ] || [ ! -e /run/ilutex/writer.lock ]; then
+      echo "    error: falta /run/ilutex/writer.lock tras tmpfiles" >&2
+      writer_lock_ok=0
+    fi
+  fi
+  if [ "$writer_lock_ok" = 1 ]; then
+    echo "==> ilutex: candado instalado (root:ilutex 0660; dir 0770)"
+  else
+    echo "==> ilutex: candado incompleto; sin él el CLI no escribe" >&2
+  fi
+  # Instalar ≠ autorizar: no añadimos usuarios al grupo automáticamente.
+  if in_ilutex_group; then
+    echo "==> ilutex: ${USER} ya está en el grupo ilutex"
+  else
+    echo "==> ilutex: autorización de escritura pendiente"
+    echo "    Instalar no te mete en el grupo. Para poder escribir:"
+    echo "      sudo usermod -aG ilutex ${USER}"
+    echo "    Luego cierra sesión y vuelve a entrar (o: newgrp ilutex)."
+  fi
+}
+
+# Instalación offline: solo ficheros root, sin compilar ni tocar la sesión.
+if [ -n "$stage_root" ]; then
+  echo "==> ilutex: instalación offline en ${stage_root} (solo ficheros root)"
+  install_root_files
+  if [ "${writer_lock_ok:-0}" = 1 ] && [ "${udev_ok:-1}" = 1 ]; then
+    echo "OK: ficheros root instalados en ${stage_root}"
+    exit 0
+  fi
+  echo "FALLO: instalación offline incompleta" >&2
+  exit 1
+fi
+
 echo "==> ilutex: compilar (release)"
 cargo build --release --manifest-path "${REPO_DIR}/Cargo.toml"
 
@@ -174,76 +309,7 @@ else
   fi
 fi
 
-echo "==> ilutex: regla udev (opcional, root)"
-if [ "${ILUTEX_SKIP_UDEV:-0}" = "1" ]; then
-  echo "    omitida (ILUTEX_SKIP_UDEV=1)"
-else
-  udev_ok=1
-  if ! sudo install -D -m644 "${REPO_DIR}/packaging/udev/70-ilutex.rules" /etc/udev/rules.d/70-ilutex.rules; then
-    echo "    error: no se pudo instalar udev/70-ilutex.rules" >&2
-    udev_ok=0
-  fi
-  if ! sudo udevadm control --reload; then
-    echo "    error: udevadm control --reload falló" >&2
-    udev_ok=0
-  fi
-  if ! sudo udevadm trigger --subsystem-match=hidraw; then
-    echo "    error: udevadm trigger falló" >&2
-    udev_ok=0
-  fi
-  if [ "$udev_ok" = 1 ]; then
-    echo "==> ilutex: regla udev instalada (root)"
-  else
-    echo "==> ilutex: regla udev incompleta" >&2
-  fi
-fi
-
-echo "==> ilutex: candado de escritura (root)"
-writer_lock_ok=1
-if ! sudo install -D -m644 "${REPO_DIR}/packaging/sysusers.d/ilutex.conf" /usr/lib/sysusers.d/ilutex.conf; then
-  echo "    error: no se pudo instalar sysusers.d/ilutex.conf" >&2
-  writer_lock_ok=0
-fi
-if ! sudo install -D -m644 "${REPO_DIR}/packaging/tmpfiles.d/ilutex.conf" /usr/lib/tmpfiles.d/ilutex.conf; then
-  echo "    error: no se pudo instalar tmpfiles.d/ilutex.conf" >&2
-  writer_lock_ok=0
-fi
-if command -v systemd-sysusers >/dev/null 2>&1; then
-  if ! sudo systemd-sysusers ilutex.conf; then
-    echo "    error: systemd-sysusers ilutex.conf falló" >&2
-    writer_lock_ok=0
-  fi
-else
-  echo "    aviso: systemd-sysusers no disponible; crea el grupo ilutex a mano" >&2
-  writer_lock_ok=0
-fi
-if command -v systemd-tmpfiles >/dev/null 2>&1; then
-  if ! sudo systemd-tmpfiles --create ilutex.conf; then
-    echo "    error: systemd-tmpfiles --create ilutex.conf falló" >&2
-    writer_lock_ok=0
-  fi
-else
-  echo "    aviso: systemd-tmpfiles no disponible; crea /run/ilutex a mano" >&2
-  writer_lock_ok=0
-fi
-if [ ! -d /run/ilutex ] || [ ! -e /run/ilutex/writer.lock ]; then
-  echo "    error: falta /run/ilutex/writer.lock tras tmpfiles" >&2
-  writer_lock_ok=0
-fi
-if [ "$writer_lock_ok" = 1 ]; then
-  echo "==> ilutex: candado instalado (root:ilutex 0660; dir 0770)"
-else
-  echo "==> ilutex: candado incompleto; sin él el CLI no escribe" >&2
-fi
-# Instalar ≠ autorizar: no añadimos usuarios al grupo automáticamente.
-if in_ilutex_group; then
-  echo "==> ilutex: ${USER} ya está en el grupo ilutex"
-else
-  echo "==> ilutex: autorización de escritura pendiente"
-  echo "    Instalar no te mete en el grupo. Para poder escribir:"
-  echo "      sudo usermod -aG ilutex ${USER}"
-  echo "    Luego cierra sesión y vuelve a entrar (o: newgrp ilutex)."
-fi
+install_root_files
 
 echo "==> ilutex: migrar estado heredado kbd-rgb/keybackcon (si existe)"
 for d in "${XDG_STATE_HOME:-${HOME}/.local/state}" "${HOME}/.local/state"; do
