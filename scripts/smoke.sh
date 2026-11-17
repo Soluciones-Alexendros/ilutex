@@ -114,6 +114,37 @@ else
   bad "install.sh bandeja Omarchy"
 fi
 
+# Instalación offline (ILUTEX_ROOT): los ficheros root y el candado se
+# materializan sin sudo ni systemd/udev vivos. Corre rápido porque el modo
+# offline corta antes de compilar.
+stage_dir="$(mktemp -d)"
+if ILUTEX_ROOT="$stage_dir" bash "${REPO_DIR}/scripts/install.sh" >/dev/null 2>&1; then
+  ok "instalación offline (ILUTEX_ROOT) sale 0"
+else
+  bad "instalación offline (ILUTEX_ROOT)"
+fi
+stage_ok=1
+for rel in \
+  "etc/udev/rules.d/70-ilutex.rules" \
+  "usr/lib/sysusers.d/ilutex.conf" \
+  "usr/lib/tmpfiles.d/ilutex.conf" \
+  "run/ilutex/writer.lock"; do
+  if [ -e "${stage_dir}/${rel}" ]; then
+    ok "offline: ${rel}"
+  else
+    bad "offline: falta ${rel}"
+    stage_ok=0
+  fi
+done
+if [ "$stage_ok" = 1 ] \
+  && [ "$(stat -c '%a' "${stage_dir}/run/ilutex" 2>/dev/null)" = "770" ] \
+  && [ "$(stat -c '%a' "${stage_dir}/run/ilutex/writer.lock" 2>/dev/null)" = "660" ]; then
+  ok "offline: candado 0770/0660"
+else
+  bad "offline: modos del candado"
+fi
+rm -rf "$stage_dir"
+
 # Buscamos el literal $1/$2 en el fuente Python (no expansión de shell).
 # shellcheck disable=SC2016
 if grep -qF 'install -m644 "$1" "$2"' "${REPO_DIR}/gui/client.py" \
