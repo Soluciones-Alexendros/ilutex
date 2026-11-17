@@ -1,0 +1,15 @@
+[Unit]
+Description=iLutex — bandeja del sistema
+# Tras la sesión gráfica: el host de bandeja (Quickshell, Waybar…) ya existe.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ilutex-gui --tray
+# Si el host de bandeja no estaba listo, reintenta sin ensuciar el journal.
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

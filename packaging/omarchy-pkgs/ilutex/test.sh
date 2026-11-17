@@ -54,4 +54,11 @@ done
 
 (cd "$srcdir" && package)
 
+# La bandeja y la restauración viven en unidades de usuario: sin ellas el
+# paquete no arranca nada al iniciar sesión.
+[[ -f "$pkgdir/usr/lib/systemd/user/ilutex-tray.service" ]] ||
+  fail "the package installs the tray unit"
+[[ -f "$pkgdir/usr/lib/systemd/user/ilutex.service" ]] ||
+  fail "the package installs the restore unit"
+
 echo "ok - ilutex"

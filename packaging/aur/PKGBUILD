@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034,SC2154
 pkgname=ilutex
-pkgver=3.0.3
+pkgver=3.0.4
 pkgrel=1
 pkgdesc="iLutex — control cromático del teclado AERO X16 vía HID LampArray"
 arch=('x86_64')
@@ -16,7 +16,7 @@ replaces=('kbd-rgb' 'keybackcon')
 # Checksum del tarball del tag v3.0.2 publicado en GitHub (no reproducible:
 # usar `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
 # antes de anunciar el paquete en AUR (ver docs/compatibility/matriz.md).
-sha256sums=('7375a9f04764d49e3ea37c1cb68783ebc42480c20cf7140ad9b689dabd949139')
+sha256sums=('SKIP')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 
 build() {
@@ -39,6 +39,7 @@ package() {
   install -Dm644 packaging/udev/70-ilutex.rules "${pkgdir}/usr/lib/udev/rules.d/70-ilutex.rules"
   install -Dm644 packaging/systemd/ilutex.service "${pkgdir}/usr/lib/systemd/user/ilutex.service"
   install -Dm644 packaging/systemd/ilutex-animation@.service "${pkgdir}/usr/lib/systemd/user/ilutex-animation@.service"
+  install -Dm644 packaging/systemd/ilutex-tray.service "${pkgdir}/usr/lib/systemd/user/ilutex-tray.service"
   for mo in gui/locale/*/LC_MESSAGES/ilutex.mo; do
     lang="${mo#gui/locale/}"; lang="${lang%%/*}"
     install -Dm644 "${mo}" "${pkgdir}/usr/share/locale/${lang}/LC_MESSAGES/ilutex.mo"
