@@ -1,6 +1,6 @@
 pkgbase = ilutex
 	pkgdesc = iLutex — control cromático del teclado AERO X16 vía HID LampArray
-	pkgver = 3.0.3
+	pkgver = 3.0.4
 	pkgrel = 1
 	url = https://github.com/Soluciones-Alexendros/ilutex
 	arch = x86_64
@@ -16,7 +16,7 @@ pkgbase = ilutex
 	conflicts = keybackcon
 	replaces = kbd-rgb
 	replaces = keybackcon
-	source = ilutex-3.0.3.tar.gz::https://github.com/Soluciones-Alexendros/ilutex/archive/refs/tags/v3.0.3.tar.gz
-	sha256sums = 7375a9f04764d49e3ea37c1cb68783ebc42480c20cf7140ad9b689dabd949139
+	source = ilutex-3.0.4.tar.gz::https://github.com/Soluciones-Alexendros/ilutex/archive/refs/tags/v3.0.4.tar.gz
+	sha256sums = ede4ab226750ffe4bf72d4309c9ae2251129aff21fa77f62f3f92f7e072cc492
 
 pkgname = ilutex
