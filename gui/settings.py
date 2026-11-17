@@ -173,6 +173,14 @@ def _autostart_content():
     )
 
 
+def _remove_desktop_file():
+    """Borra el autostart XDG si existe; ausencia no es un error."""
+    try:
+        os.unlink(_autostart_file())
+    except OSError:
+        pass
+
+
 def is_autostart_enabled():
     """¿Arranca la bandeja al iniciar sesión?
 
@@ -199,24 +207,16 @@ def set_autostart_enabled(enabled):
     .desktop. Nunca se dejan los dos activos a la vez.
     """
     if _unit_installed():
-        if enabled:
-            ok, _out = _systemctl("enable", TRAY_UNIT)
-        else:
-            ok, _out = _systemctl("disable", TRAY_UNIT)
+        action = "enable" if enabled else "disable"
+        ok, _out = _systemctl(action, TRAY_UNIT)
         if ok:
             # Sin duplicados: el .desktop sobra si la unidad manda.
-            try:
-                os.unlink(_autostart_file())
-            except Exception:
-                pass
+            _remove_desktop_file()
             return enabled
         log_exc("autostart por systemd")
     path = _autostart_file()
     if not enabled:
-        try:
-            os.unlink(path)
-        except Exception:
-            pass  # no existía: ya estaba desactivado
+        _remove_desktop_file()
         return False
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)

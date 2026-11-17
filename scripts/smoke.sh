@@ -79,9 +79,11 @@ else
   bad "systemd anim"
 fi
 
-if grep -q '__ILUTEX_BIN__' "${REPO_DIR}/scripts/install.sh" \
-  && grep -q 's|/usr/bin/ilutex-gui|' "${REPO_DIR}/scripts/install.sh" \
-  && grep -q 's|/usr/bin/ilutex|' "${REPO_DIR}/scripts/install.sh"; then
+# La instalación local reescribe las rutas /usr/bin de las unidades; el
+# placeholder __ILUTEX_BIN__ pertenece a las plantillas de npm.
+if grep -q 's|/usr/bin/ilutex-gui|' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 's|/usr/bin/ilutex|' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q '__ILUTEX_BIN__' "${REPO_DIR}/npm/install.js"; then
   ok "install.sh reescribe unidades a ~/.local/bin"
 else
   bad "install.sh reescritura de unidades"
