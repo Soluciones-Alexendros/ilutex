@@ -296,7 +296,8 @@ fi
 # las dos duplica la barra superior. Se mueve con respaldo (no se borra).
 evict_foreign_waybar() {
   if [ -d "${HOME}/.config/waybar" ]; then
-    local backup="${HOME}/.config/waybar.ilutex-backup-$(date +%Y%m%d%H%M%S)"
+    local backup
+    backup="${HOME}/.config/waybar.ilutex-backup-$(date +%Y%m%d%H%M%S)"
     mv "${HOME}/.config/waybar" "$backup" 2>/dev/null \
       && echo "    barra waybar apartada en $backup (Omarchy ya tiene la suya)"
   fi
