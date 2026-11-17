@@ -79,10 +79,37 @@ else
   bad "systemd anim"
 fi
 
-if grep -q '__ILUTEX_BIN__' "${REPO_DIR}/scripts/install.sh"; then
+if grep -q '__ILUTEX_BIN__' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 's|/usr/bin/ilutex-gui|' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 's|/usr/bin/ilutex|' "${REPO_DIR}/scripts/install.sh"; then
   ok "install.sh reescribe unidades a ~/.local/bin"
 else
   bad "install.sh reescritura de unidades"
+fi
+
+# Bandeja: una unidad de usuario y una sola fuente de arranque.
+if grep -q 'ExecStart=/usr/bin/ilutex-gui --tray' "${REPO_DIR}/packaging/systemd/ilutex-tray.service" \
+  && grep -q 'WantedBy=graphical-session.target' "${REPO_DIR}/packaging/systemd/ilutex-tray.service"; then
+  ok "systemd tray (ilutex-gui --tray)"
+else
+  bad "systemd tray"
+fi
+
+if grep -q 'enable_unit ilutex-tray.service' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'ilutex-tray.desktop' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'TRAY_UNIT' "${REPO_DIR}/gui/settings.py"; then
+  ok "bandeja con una sola fuente de arranque"
+else
+  bad "bandeja: fuentes de arranque"
+fi
+
+# Omarchy: su barra es Quickshell; el instalador no debe sugerir Waybar.
+if grep -q 'omarchy bar add omarchy.tray' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'config/waybar.ilutex-backup' "${REPO_DIR}/scripts/install.sh" \
+  && ! grep -q 'sudo pacman -S waybar' "${REPO_DIR}/scripts/install.sh"; then
+  ok "install.sh adapta la bandeja a Omarchy sin duplicar barra"
+else
+  bad "install.sh bandeja Omarchy"
 fi
 
 # Buscamos el literal $1/$2 en el fuente Python (no expansión de shell).

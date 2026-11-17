@@ -4,6 +4,26 @@ La fuente de verdad son los tags y `git-cliff`. Resumen:
 
 ## [Unreleased]
 
+## [3.0.4] — 2026-11-17
+- **La bandeja la gestiona el instalador.** Nueva unidad de usuario
+  `ilutex-tray.service` (`ilutex-gui --tray`), única fuente de arranque: el
+  instalador la habilita y aparta el `.desktop` XDG antiguo, y el interruptor
+  «Abrir al iniciar sesión» de Preferencias gestiona esa misma unidad en vez de
+  crear un duplicado (dos bandejas en la barra).
+- **Omarchy sin duplicar la barra.** Su barra es Quickshell y ya trae el widget
+  `omarchy.tray`; el instalador lo comprueba (y lo añade si falta), deja de
+  sugerir Waybar y aparta con respaldo cualquier `~/.config/waybar` propio,
+  deteniendo el proceso si estaba duplicando la barra.
+- **Arreglo de las unidades en instalación local.** Apuntaban a `/usr/bin` y el
+  instalador solo sustituía el placeholder, así que `restore` y la bandeja
+  fallaban en una instalación en `~/.local/bin`. Ahora reescribe también esas
+  rutas.
+- **Habilitar en instalación nueva.** `disabled` en una unidad recién instalada
+  ya no se confunde con una decisión del usuario: la unidad se habilita salvo
+  `masked` o desactivación explícita previa. Se elige un Python con PyGObject
+  para las comprobaciones, así no hay avisos falsos de dependencias.
+- Pruebas: cinco casos nuevos cubren la regla de fuente única de arranque.
+
 ## [3.0.3] — 2026-11-16
 - **Barrido del nombre anterior.** Se eliminan los residuos de `keybackcon`:
   variables de entorno de pruebas y del postinstalador (`KEYBACKCON_*` →

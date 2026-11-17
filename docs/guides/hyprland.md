@@ -59,26 +59,28 @@ Sin host, la ventana (`ilutex-gui`) sigue siendo completa; solo falta el icono.
 > `~/.cache/ilutex/tray-<color>-<modo>.png`; el host lo escala a su tamaño
 > (≈20 px) sin perder calidad.
 
-## UWSM y sin UWSM
+## Arranque al iniciar sesión (lo pone el instalador)
 
-- **Con UWSM:** deja que gestione el autostart XDG; no actives a la vez la
-  unidad de usuario, el autostart XDG y una entrada `exec-once` del compositor.
-- **Sin UWSM:** arranque manual o una sola línea opt-in en tu `hyprland.conf`,
-  por ejemplo (sintaxis según tu versión de Hyprland):
+No hay que editar `hyprland.conf` ni tocar autostart a mano: `scripts/install.sh`
+instala y habilita la unidad de usuario:
 
-```conf
-# Opt-in; no lo añadimos nosotros.
-exec-once = ilutex-gui --tray
-```
+| Unidad | Para qué |
+|---|---|
+| `ilutex-tray.service` | la bandeja (`ilutex-gui --tray`) al iniciar sesión |
+| `ilutex.service` | `ilutex restore --on-login` (respeta `restore_policy`) |
 
-Para restauración al login con systemd de usuario (si tu sesión lo expone):
+La unidad, y no un `.desktop` XDG, es la **única** fuente de arranque. Si
+tuvieras un autostart antiguo, el instalador lo aparta; tener los dos arrancaría
+dos bandejas. Para dejarla desactivada, usa `systemctl --user disable
+ilutex-tray.service` (el instalador no la reactiva) o instala con
+`ILUTEX_NO_TRAY=1`.
 
-```bash
-systemctl --user enable --now ilutex.service
-```
+El interruptor «Abrir al iniciar sesión» de Preferencias gestiona esa misma
+unidad, así que nunca crea un duplicado. Con UWSM no hace falta nada más: no
+añadas además un `exec-once` del compositor.
 
-Comprueba que `systemctl --user` habla con el gestor de **tu** sesión gráfica;
-tener el binario `systemctl` no basta.
+Comprueba que el gestor de usuario habla con **tu** sesión gráfica; tener el
+binario instalado no basta.
 
 ## Polkit
 

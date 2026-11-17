@@ -10,6 +10,7 @@ usr/lib/tmpfiles.d/ilutex.conf
 usr/lib/sysusers.d/ilutex.conf
 usr/lib/systemd/user/ilutex.service
 usr/lib/systemd/user/ilutex-animation@.service
+usr/lib/systemd/user/ilutex-tray.service
 usr/share/locale/es/LC_MESSAGES/ilutex.mo
 usr/share/locale/en/LC_MESSAGES/ilutex.mo
 usr/share/glib-2.0/schemas/org.alexendros.ilutex.gschema.xml

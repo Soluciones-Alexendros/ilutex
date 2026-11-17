@@ -46,6 +46,36 @@ RESTORE_KEY = "restore-on-login"
 REPO_URL = "https://github.com/Soluciones-Alexendros/ilutex"
 AUTOSTART_NAME = "ilutex-tray.desktop"
 AUTOSTART_EXEC = "ilutex-gui --tray"
+# El instalador deja la bandeja en esta unidad de usuario. Es la única fuente
+# de arranque: si existe, el interruptor la gestiona y no crea un .desktop
+# (tener ambos arrancaría dos bandejas).
+TRAY_UNIT = "ilutex-tray.service"
+
+
+def _systemctl(*args):
+    """Ejecuta `systemctl --user` sin bloquear si no hay systemd."""
+    import subprocess
+
+    try:
+        r = subprocess.run(
+            ["systemctl", "--user", *args],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        return r.returncode == 0, (r.stdout or "").strip()
+    except Exception:
+        return False, ""
+
+
+def _unit_installed():
+    """¿Existe la unidad de usuario de la bandeja?"""
+    base = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+    if os.path.isfile(os.path.join(base, "systemd", "user", TRAY_UNIT)):
+        return True
+    # Instalación de paquete: la unidad vive en el sistema.
+    ok, _out = _systemctl("cat", TRAY_UNIT)
+    return ok
 
 
 def get_settings():
@@ -144,6 +174,14 @@ def _autostart_content():
 
 
 def is_autostart_enabled():
+    """¿Arranca la bandeja al iniciar sesión?
+
+    Manda la unidad de usuario si está instalada; el .desktop XDG queda como
+    respaldo para sistemas sin systemd o instalaciones antiguas.
+    """
+    if _unit_installed():
+        ok, out = _systemctl("is-enabled", TRAY_UNIT)
+        return ok and out in ("enabled", "enabled-runtime", "static", "alias")
     try:
         with open(_autostart_file()) as f:
             content = f.read()
@@ -155,6 +193,24 @@ def is_autostart_enabled():
 
 
 def set_autostart_enabled(enabled):
+    """Activa o desactiva el arranque de la bandeja con una sola fuente.
+
+    Con la unidad instalada se usa `systemctl --user`; si no, se escribe el
+    .desktop. Nunca se dejan los dos activos a la vez.
+    """
+    if _unit_installed():
+        if enabled:
+            ok, _out = _systemctl("enable", TRAY_UNIT)
+        else:
+            ok, _out = _systemctl("disable", TRAY_UNIT)
+        if ok:
+            # Sin duplicados: el .desktop sobra si la unidad manda.
+            try:
+                os.unlink(_autostart_file())
+            except Exception:
+                pass
+            return enabled
+        log_exc("autostart por systemd")
     path = _autostart_file()
     if not enabled:
         try:

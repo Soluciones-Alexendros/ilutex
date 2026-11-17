@@ -102,25 +102,60 @@ install -m644 "${REPO_DIR}/assets/icons/ilutex.svg" "${ICON_DST}/ilutex.svg"
 
 echo "==> ilutex: instalar unidades systemd de usuario"
 mkdir -p "${UNIT_DST}"
+# Estado previo: distinguir «unidad nueva» (not-found) de «el usuario la
+# desactivó» (disabled). Sin esto, una unidad nueva nunca se habilitaba.
+unit_prev() { systemctl --user is-enabled "$1" 2>/dev/null || true; }
+restore_prev="$(unit_prev ilutex.service)"
+tray_prev="$(unit_prev ilutex-tray.service)"
+restore_had=false; [ -f "${UNIT_DST}/ilutex.service" ] && restore_had=true
+tray_had=false; [ -f "${UNIT_DST}/ilutex-tray.service" ] && tray_had=true
+
+# Las unidades de paquete apuntan a /usr/bin; en instalación local se reescriben a
+# ${BIN_DST} (la bandeja, además, admite el placeholder __ILUTEX_BIN__).
 for unit in "${REPO_DIR}/packaging/systemd"/*.service; do
   [ -f "$unit" ] || continue
-  sed "s|__ILUTEX_BIN__|${BIN_DST}/ilutex|g" "$unit" > "${UNIT_DST}/$(basename "$unit")"
+  sed -e "s|/usr/bin/ilutex-gui|${BIN_DST}/ilutex-gui|g" \
+      -e "s|/usr/bin/ilutex|${BIN_DST}/ilutex|g" \
+      -e "s|__ILUTEX_BIN__|${BIN_DST}/ilutex|g" \
+      "$unit" > "${UNIT_DST}/$(basename "$unit")"
 done
 systemctl --user daemon-reload 2>/dev/null || true
 
-# Restauración al login: solo si la unidad es nueva o se fuerza (ILUTEX_ENABLE_RESTORE=1).
-prev_enable="$(systemctl --user is-enabled ilutex.service 2>/dev/null || true)"
-had_unit=false
-[ -f "${UNIT_DST}/ilutex.service" ] && had_unit=true
-if [ "$prev_enable" = "disabled" ] || [ "$prev_enable" = "masked" ]; then
-  echo "==> ilutex: restauración ${prev_enable}; no se reactiva"
-elif [ "$prev_enable" = "enabled" ] || [ "$prev_enable" = "enabled-runtime" ]; then
-  : # ya activa
+# Habilita una unidad: respeta masked y disabled previos; una unidad nueva se
+# habilita salvo que se desactive por entorno.
+enable_unit() {
+  local unit="$1" label="$2" prev="$3" had="$4" force="$5"
+  case "$prev" in
+    masked)
+      echo "==> ilutex: ${label}: unidad enmascarada; no se toca"
+      return 0 ;;
+    enabled|enabled-runtime)
+      return 0 ;;
+    disabled)
+      if [ "$had" = true ] && [ "$force" != "1" ]; then
+        echo "==> ilutex: ${label} deshabilitada por el usuario; no se reactiva"
+        return 0
+      fi ;;
+  esac
+  if systemctl --user enable "$unit" 2>/dev/null; then
+    echo "==> ilutex: ${label} habilitada (${unit})"
+  else
+    echo "    aviso: no se pudo habilitar ${unit}" >&2
+  fi
+}
+
+# Restauración al login.
+enable_unit ilutex.service "restauración al inicio" "$restore_prev" "$restore_had" "${ILUTEX_ENABLE_RESTORE:-0}"
+
+# Bandeja: una sola fuente de arranque (unidad de usuario, no autostart XDG).
+if [ "${ILUTEX_NO_TRAY:-0}" = "1" ]; then
+  echo "==> ilutex: bandeja desactivada (ILUTEX_NO_TRAY=1)"
 else
-  force_enable="${ILUTEX_ENABLE_RESTORE:-0}"
-  if [ "$had_unit" = false ] || [ "$force_enable" = 1 ]; then
-    systemctl --user enable ilutex.service
-    echo "==> ilutex: restauración al login habilitada (systemctl --user enable ilutex.service)"
+  enable_unit ilutex-tray.service "bandeja al iniciar sesión" "$tray_prev" "$tray_had" "${ILUTEX_ENABLE_TRAY:-0}"
+  legacy_autostart="${XDG_CONFIG_HOME:-${HOME}/.config}/autostart/ilutex-tray.desktop"
+  if [ -f "$legacy_autostart" ] && systemctl --user is-enabled ilutex-tray.service >/dev/null 2>&1; then
+    mv "$legacy_autostart" "${legacy_autostart}.bak" 2>/dev/null \
+      && echo "    autostart XDG retirado (la unidad ya arranca la bandeja)"
   fi
 fi
 
@@ -246,12 +281,33 @@ fi
 host_ok=1
 if [ -d /usr/share/omarchy ]; then
   echo "==> ilutex: Omarchy detectado — la bandeja la pinta su shell (Quickshell)"
-  if [ -f "${HOME}/.config/omarchy/shell.json" ] && ! grep -q "omarchy.tray" "${HOME}/.config/omarchy/shell.json"; then
-    echo "    aviso: la barra no tiene el widget de bandeja" >&2
-    echo "    pista: omarchy bar add omarchy.tray --section right" >&2
-    host_ok=0
+  shell_json="${HOME}/.config/omarchy/shell.json"
+  if [ -f "$shell_json" ] && ! grep -q "omarchy.tray" "$shell_json"; then
+    if command -v omarchy >/dev/null 2>&1; then
+      if omarchy bar add omarchy.tray --section right >/dev/null 2>&1; then
+        echo "    widget omarchy.tray añadido a la barra"
+      else
+        echo "    aviso: no se pudo añadir omarchy.tray; usa 'omarchy bar add omarchy.tray --section right'" >&2
+        host_ok=0
+      fi
+    else
+      echo "    aviso: la barra no tiene el widget de bandeja" >&2
+      echo "    pista: omarchy bar add omarchy.tray --section right" >&2
+      host_ok=0
+    fi
   else
     echo "    el icono aparece en el widget omarchy.tray de la barra"
+  fi
+
+  # Barra duplicada: Waybar no pinta la barra de Omarchy. Si hay una config
+  # propia o un proceso vivo, se aparta con respaldo para no duplicar.
+  if [ -d "${HOME}/.config/waybar" ]; then
+    backup="${HOME}/.config/waybar.ilutex-backup-$(date +%Y%m%d%H%M%S)"
+    mv "${HOME}/.config/waybar" "$backup" 2>/dev/null \
+      && echo "    barra waybar apartada en $backup (Omarchy ya tiene la suya)"
+  fi
+  if pgrep -x waybar >/dev/null 2>&1; then
+    pkill -x waybar 2>/dev/null && echo "    proceso waybar detenido (duplicaba la barra)"
   fi
 elif [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] || [ "${XDG_CURRENT_DESKTOP:-}" = "Hyprland" ]; then
   echo "==> ilutex: Hyprland sin Omarchy — hace falta un host StatusNotifier"
