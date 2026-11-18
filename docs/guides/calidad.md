@@ -17,7 +17,7 @@ Workflows aparte (no bloquean `ci-gate`):
 
 | Workflow | Qué hace |
 | --- | -------- |
-| `codeql.yml` | CodeQL Rust + Python en `main`/PR y cron semanal |
+| Code Scanning (default setup) | CodeQL del repo (GitHub); no hay `codeql.yml` advanced — choca con default setup |
 | `scorecard.yml` | OpenSSF Scorecard en `main` y cron semanal |
 
 `release.yml` (tag `v*`) sigue aparte: `cargo test/build --locked`, suite Python (unittest + xvfb como `quality`), smoke, `.deb`, SBOM, `SHA256SUMS` + firma GPG (`SHA256SUMS.asc`), attestation de procedencia. Exporta `SOURCE_DATE_EPOCH` desde el commit del tag (no afirma builds bit a bit).
