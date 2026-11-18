@@ -11,7 +11,7 @@
 # every account that installs the package.
 
 pkgname=ilutex
-pkgver=3.0.0
+pkgver=3.1.1
 pkgrel=1
 pkgdesc='Keyboard backlight for the AERO X16, from the terminal or a GTK window'
 arch=('x86_64' 'aarch64')
@@ -28,7 +28,8 @@ conflicts=('keybackcon' 'kbd-rgb')
 replaces=('keybackcon' 'kbd-rgb')
 backup=()
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
-# The tag's source archive. `updpkgsums` recomputes it after a version bump.
+# Checksum del tarball del tag (no reproducible). Caduca al subir pkgver:
+# tras `git tag v${pkgver}` ejecuta `updpkgsums`.
 sha256sums=('022ea2550d82e670c2903cc8575269a113a613a16015e57f1c93ce9ca9d5b0cd')
 
 # The GitHub archive names its root after the repository, which is not the
@@ -71,8 +72,11 @@ package() {
     install -Dm644 "$mo" "$pkgdir/usr/share/locale/${_lang}/LC_MESSAGES/ilutex.mo"
   done
 
-  install -Dm644 packaging/desktop/ilutex.desktop \
-    "$pkgdir/usr/share/applications/ilutex.desktop"
+  install -d "$pkgdir/usr/share/applications"
+  # Exec absoluto: el menú no debe depender del PATH (shim mise, ~/.local, …).
+  sed 's|^Exec=ilutex-gui$|Exec=/usr/bin/ilutex-gui|' \
+    packaging/desktop/ilutex.desktop \
+    > "$pkgdir/usr/share/applications/ilutex.desktop"
   install -Dm644 assets/icons/ilutex.svg \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/ilutex.svg"
 

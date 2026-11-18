@@ -97,10 +97,22 @@ if [ -n "${ILUTEX_ROOT:-}" ]; then
   esac
 fi
 
+# Sustituye dst solo si el contenido difiere (idempotente: mtime estable).
+# Devuelve 0 si escribió, 1 si ya era idéntico.
+install_if_changed() {
+  local src="$1" dst="$2" mode="${3:-644}"
+  if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
+    return 1
+  fi
+  install -m"$mode" "$src" "$dst"
+  return 0
+}
+
 install_root_files() {
   echo "==> ilutex: regla udev (opcional, root)"
   if [ "${ILUTEX_SKIP_UDEV:-0}" = "1" ]; then
     echo "    omitida (ILUTEX_SKIP_UDEV=1)"
+    udev_ok=1
   else
     udev_ok=1
     install_root_file \
@@ -195,6 +207,25 @@ echo "==> ilutex: instalar binario en ${BIN_DST}/ilutex"
 mkdir -p "${BIN_DST}"
 install -m755 "${REPO_DIR}/target/release/ilutex" "${BIN_DST}/ilutex"
 
+# Aviso si otro ilutex gana en PATH (shim mise, /usr/bin, …) con otra versión.
+warn_shadowed_ilutex() {
+  local resolved path_ver installed_ver
+  resolved="$(command -v ilutex 2>/dev/null || true)"
+  [ -n "$resolved" ] || return 0
+  # Comparar rutas canónicas: symlinks y // no deben disparar el aviso.
+  if [ "$(readlink -f "$resolved" 2>/dev/null || echo "$resolved")" = \
+       "$(readlink -f "${BIN_DST}/ilutex" 2>/dev/null || echo "${BIN_DST}/ilutex")" ]; then
+    return 0
+  fi
+  installed_ver="$("${BIN_DST}/ilutex" --version 2>/dev/null | awk '{print $NF}' || true)"
+  path_ver="$("$resolved" --version 2>/dev/null | awk '{print $NF}' || true)"
+  [ -n "$installed_ver" ] && [ -n "$path_ver" ] || return 0
+  if [ "$path_ver" != "$installed_ver" ]; then
+    echo "AVISO: ilutex ${path_ver} en ${resolved} sombrea ${BIN_DST}/ilutex ${installed_ver}" >&2
+  fi
+}
+warn_shadowed_ilutex
+
 echo "==> ilutex: instalar GUI en ${BIN_DST}/ilutex-gui"
 GUI_DST="${HOME}/.local/share/ilutex/gui"
 mkdir -p "${GUI_DST}"
@@ -238,43 +269,68 @@ fi
 
 echo "==> ilutex: instalar lanzador + icono"
 mkdir -p "${DESK_DST}" "${ICON_DST}"
-install -m644 "${REPO_DIR}/packaging/desktop/ilutex.desktop" "${DESK_DST}/ilutex.desktop"
-install -m644 "${REPO_DIR}/assets/icons/ilutex.svg" "${ICON_DST}/ilutex.svg"
+# Plantilla del repo: Exec=ilutex-gui (válida para desktop-file-validate).
+# Instalación de usuario: Exec absoluto para no depender del PATH.
+desk_tmp="$(mktemp)"
+sed -e "s|^Exec=ilutex-gui\$|Exec=${BIN_DST}/ilutex-gui|" \
+  "${REPO_DIR}/packaging/desktop/ilutex.desktop" > "$desk_tmp"
+if install_if_changed "$desk_tmp" "${DESK_DST}/ilutex.desktop" 644; then
+  echo "    desktop actualizado (${DESK_DST}/ilutex.desktop)"
+fi
+rm -f "$desk_tmp"
+install_if_changed "${REPO_DIR}/assets/icons/ilutex.svg" "${ICON_DST}/ilutex.svg" 644 || true
 
 echo "==> ilutex: instalar unidades systemd de usuario"
 mkdir -p "${UNIT_DST}"
 # Estado previo por unidad: distinguir «unidad nueva» (sin fichero) de «el
 # usuario la desactivó». Se muestrea antes de instalar; si no, una unidad nueva
 # nunca se habilitaba.
-declare -A UNIT_PREV=()
-declare -A UNIT_HAD=()
-record_unit_state() {
+# Sin arrays asociativos: evita fallos con bash limitado / set -e en bordes.
+unit_prev_of() {
   local unit="$1"
-  UNIT_PREV["$unit"]="$(systemctl --user is-enabled "$unit" 2>/dev/null || true)"
-  UNIT_HAD["$unit"]=false
-  [ -f "${UNIT_DST}/${unit}" ] && UNIT_HAD["$unit"]=true
+  systemctl --user is-enabled "$unit" 2>/dev/null || true
 }
-for unit in ilutex.service ilutex-tray.service; do
-  record_unit_state "$unit"
-done
+UNIT_PREV_RESTORE="$(unit_prev_of ilutex.service)"
+UNIT_HAD_RESTORE=0
+if [ -f "${UNIT_DST}/ilutex.service" ]; then
+  UNIT_HAD_RESTORE=1
+fi
+UNIT_PREV_TRAY="$(unit_prev_of ilutex-tray.service)"
+UNIT_HAD_TRAY=0
+if [ -f "${UNIT_DST}/ilutex-tray.service" ]; then
+  UNIT_HAD_TRAY=1
+fi
 
 # Las unidades de paquete apuntan a /usr/bin; en instalación local se reescriben
 # al binario de ${BIN_DST}. (Las plantillas de npm usan __ILUTEX_BIN__ y las
-# resuelve npm/install.js, no este script.)
+# resuelve npm/install.js, no este script.) Solo se escriben si el contenido
+# cambia: la 2ª corrida deja el mtime intacto y evita daemon-reload inútil.
+units_changed=0
 for unit in "${REPO_DIR}/packaging/systemd"/*.service; do
   [ -f "$unit" ] || continue
+  unit_tmp="$(mktemp)"
   sed -e "s|/usr/bin/ilutex-gui|${BIN_DST}/ilutex-gui|g" \
       -e "s|/usr/bin/ilutex|${BIN_DST}/ilutex|g" \
-      "$unit" > "${UNIT_DST}/$(basename "$unit")"
+      "$unit" > "$unit_tmp"
+  if install_if_changed "$unit_tmp" "${UNIT_DST}/$(basename "$unit")" 644; then
+    units_changed=1
+  fi
+  rm -f "$unit_tmp"
 done
-systemctl --user daemon-reload 2>/dev/null || true
+if [ "$units_changed" = 1 ]; then
+  systemctl --user daemon-reload 2>/dev/null || true
+fi
 
 # Habilita una unidad respetando lo que el usuario ya decidió: `masked` no se
 # toca, `disabled` con fichero previo no se reactiva, y una unidad nueva se
 # habilita salvo que el entorno pida lo contrario.
 enable_unit() {
   local unit="$1" label="$2" force="${3:-0}"
-  local prev="${UNIT_PREV[$unit]:-}" had="${UNIT_HAD[$unit]:-false}"
+  local prev="" had=0
+  case "$unit" in
+    ilutex.service) prev="${UNIT_PREV_RESTORE:-}" had="${UNIT_HAD_RESTORE:-0}" ;;
+    ilutex-tray.service) prev="${UNIT_PREV_TRAY:-}" had="${UNIT_HAD_TRAY:-0}" ;;
+  esac
   case "$prev" in
     masked)
       echo "==> ilutex: ${label}: unidad enmascarada; no se toca"
@@ -282,7 +338,7 @@ enable_unit() {
     enabled|enabled-runtime)
       return 0 ;;
     disabled)
-      if [ "$had" = true ] && [ "$force" != "1" ]; then
+      if [ "$had" = 1 ] && [ "$force" != "1" ]; then
         echo "==> ilutex: ${label} deshabilitada por el usuario; no se reactiva"
         return 0
       fi ;;
@@ -310,6 +366,14 @@ else
 fi
 
 install_root_files
+
+# Instalación viva: root incompleto → exit ≠ 0 y sin "OK:" (evita falso positivo).
+# ILUTEX_SKIP_UDEV=1 y «no estar en el grupo ilutex» no cuentan como fallo.
+if [ "${writer_lock_ok:-0}" != 1 ] || [ "${udev_ok:-1}" != 1 ]; then
+  echo "FALLO: instalación incompleta (sección root)" >&2
+  echo "    Revisa sudo (udev/sysusers/tmpfiles) o usa ILUTEX_ROOT=/ruta para offline." >&2
+  exit 1
+fi
 
 echo "==> ilutex: migrar estado heredado kbd-rgb/keybackcon (si existe)"
 for d in "${XDG_STATE_HOME:-${HOME}/.local/state}" "${HOME}/.local/state"; do

@@ -24,6 +24,19 @@ git push origin vX.Y.Z
 | `.pot` desincronizado del código | `make check-i18n` compara `.pot` y `.po` (msgids, vacíos, duplicados). `make i18n` regenera con `xgettext` (`--keyword=_ --keyword=N_`). |
 | AUR sin `sha256sums` | `updpkgsums` y `makepkg --printsrcinfo` antes de publicar (ver `packaging/aur/README.md`). |
 | Unidades systemd en `~/.local` | `install.sh` reescribe `/usr/bin` → `%h/.local/bin`. El paquete debe quedar en `/usr/bin`. |
+| `ilutex --version` viejo tras `install.sh` | Shim mise o `/usr/bin` delante de `~/.local/bin`. El instalador avisa (`AVISO: … sombrea …`). Quita el shim o alinea el paquete de sistema. |
+| Menú abre GUI rota | El `.desktop` de usuario usa `Exec` absoluto a `~/.local/bin/ilutex-gui`. El de sistema (`package()`) usa `/usr/bin/ilutex-gui`. |
+| Drift versión instalada vs repo | `make check-installed` compara `Cargo.toml` con binarios, unidades y `.desktop` presentes. |
+
+## Precedencia de canales
+
+Orden típico en el shell: shim de mise → `/usr/bin` → `~/.local/bin`. Una
+instalación de usuario 3.1.x no surte efecto si un paquete de sistema o un
+shim antiguo gana. El instalador avisa cuando las versiones difieren; el
+`.desktop` de usuario no depende del `PATH`.
+
+Tras publicar el tag `vX.Y.Z`, recalcula checksums de AUR/omarchy con
+`updpkgsums` (el tarball de GitHub no es reproducible).
 
 ## Instalación offline (ILUTEX_ROOT)
 

@@ -4,6 +4,22 @@ La fuente de verdad son los tags y `git-cliff`. Resumen:
 
 ## [Unreleased]
 
+## [3.1.1] — 2026-11-18
+- **Instalador veraz.** Si la sección root (udev/sysusers/tmpfiles) falla, el
+  script sale distinto de 0 y no imprime `OK:` (evita el falso positivo con
+  `sudo` sin TTY). Avisa si otro `ilutex` en el `PATH` sombrea el binario
+  recién instalado con una versión distinta. Unidades de usuario y `.desktop`
+  solo se reescriben si el contenido cambia (mtime estable; `daemon-reload`
+  solo cuando hace falta).
+- **Diagnóstico GUI.** `ilutex-gui --version` (lanzador y `gui/main.py`)
+  imprime la versión sin cargar GTK. El smoke elige un Python con PyGObject
+  (o declara `not_run` explícito).
+- **Desktop con Exec absoluto** en la instalación de usuario y en los
+  `package()` de AUR/omarchy; la plantilla del repo sigue siendo
+  `Exec=ilutex-gui` para `desktop-file-validate`.
+- **Gate de lo instalado.** `make check-installed` compara `Cargo.toml` con
+  binarios, unidades y `.desktop` presentes.
+
 ## [3.1.0] — 2026-11-17
 - **Instalación offline.** `ILUTEX_ROOT=/ruta ./scripts/install.sh` escenifica
   los ficheros root (udev, sysusers, tmpfiles) y el candado `run/ilutex/writer.lock`

@@ -7,6 +7,22 @@ say() { printf '%s\n' "$*"; }
 ok() { say "  ok: $*"; }
 bad() { say "  FALLO: $*"; fail=1; }
 
+# Python con PyGObject (misma idea que packaging/ilutex-gui): el PATH puede
+# tener mise/pyenv sin gi. Vacío → no hay candidato.
+find_python_gi() {
+  local cand
+  for cand in "${ILUTEX_PYTHON:-}" python3 /usr/bin/python3 python; do
+    [ -n "$cand" ] || continue
+    command -v "$cand" >/dev/null 2>&1 || continue
+    if "$cand" -c 'import gi' >/dev/null 2>&1; then
+      printf '%s\n' "$cand"
+      return 0
+    fi
+  done
+  return 1
+}
+PY_GI="$(find_python_gi || true)"
+
 say "==> ilutex smoke"
 if [ ! -x "${REPO_DIR}/target/release/ilutex" ]; then
   cargo build --release --manifest-path "${REPO_DIR}/Cargo.toml" >/dev/null
@@ -237,11 +253,12 @@ else
   bad "GUI completa"
 fi
 
-# Suite unitaria de la GUI: sin display ni hardware; los tests de bandeja
-# hacen skip si Gtk3/Ayatana no están (p. ej. CI) o si Gtk4 ya está cargado
-# en el proceso (incompatibilidad documentada GTK3/GTK4).
-if (cd "${REPO_DIR}" && python3 -m unittest discover -s gui/tests); then
-  ok "tests unitarios GUI (unittest)"
+# Suite unitaria de la GUI: intérprete con gi (no el python3 del PATH a ciegas).
+# Sin PyGObject → not_run explícito (no skip silencioso ni fallo).
+if [ -z "$PY_GI" ]; then
+  say "  not_run: sin PyGObject (unittest GUI)"
+elif (cd "${REPO_DIR}" && "$PY_GI" -m unittest discover -s gui/tests); then
+  ok "tests unitarios GUI (unittest via ${PY_GI})"
 else
   bad "tests unitarios GUI"
 fi
@@ -294,22 +311,40 @@ else
   bad "gui/main.py --help"
 fi
 
-if python3 -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version('AyatanaAppIndicator3','0.1')" >/dev/null 2>&1; then
+gui_ver="$(python3 "${REPO_DIR}/gui/main.py" --version 2>/dev/null || true)"
+if [[ "$gui_ver" == ilutex-gui\ * ]]; then
+  ok "gui/main.py --version (${gui_ver})"
+else
+  bad "gui/main.py --version"
+fi
+
+launcher_ver="$(
+  ILUTEX_GUI_DIR="${REPO_DIR}/gui" bash "${REPO_DIR}/packaging/ilutex-gui" --version 2>/dev/null || true
+)"
+if [[ "$launcher_ver" == ilutex-gui\ * ]]; then
+  ok "packaging/ilutex-gui --version (${launcher_ver})"
+else
+  bad "packaging/ilutex-gui --version"
+fi
+
+if [ -z "$PY_GI" ]; then
+  say "  not_run: sin PyGObject (tray selftest)"
+elif "$PY_GI" -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version('AyatanaAppIndicator3','0.1')" >/dev/null 2>&1; then
   tray_ok=0
   # Preferir Xvfb: un DISPLAY heredado sin servidor real provoca segfaults GTK.
   mkdir -p "${REPO_DIR}/.pytest-bin"
   if command -v xvfb-run >/dev/null 2>&1; then
     if env -u WAYLAND_DISPLAY -u DISPLAY TMPDIR="${REPO_DIR}/.pytest-bin" \
-         GDK_BACKEND=x11 xvfb-run -a python3 "${REPO_DIR}/gui/tray_selftest.py"; then
-      ok "tray selftest (xvfb)"
+         GDK_BACKEND=x11 xvfb-run -a "$PY_GI" "${REPO_DIR}/gui/tray_selftest.py"; then
+      ok "tray selftest (xvfb via ${PY_GI})"
       tray_ok=1
     else
       say "  aviso: tray selftest (xvfb) no disponible en este entorno"
       tray_ok=1
     fi
   elif [ -n "${DISPLAY:-}" ]; then
-    if env -u WAYLAND_DISPLAY GDK_BACKEND=x11 python3 "${REPO_DIR}/gui/tray_selftest.py"; then
-      ok "tray selftest"
+    if env -u WAYLAND_DISPLAY GDK_BACKEND=x11 "$PY_GI" "${REPO_DIR}/gui/tray_selftest.py"; then
+      ok "tray selftest (via ${PY_GI})"
       tray_ok=1
     else
       say "  aviso: tray selftest falló con DISPLAY=${DISPLAY}"
@@ -321,6 +356,13 @@ if python3 -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version('A
   fi
 else
   say "  aviso: sin Gtk3/Ayatana, tray selftest omitido"
+fi
+
+# Instalador con sudo falso: debe salir 1–2 sin "OK:" (falso positivo root).
+if bash "${REPO_DIR}/scripts/test-install-root-fail.sh"; then
+  ok "install.sh con sudo falso falla (sin OK:)"
+else
+  bad "install.sh con sudo falso"
 fi
 
 if [ "$fail" -ne 0 ]; then say "SMOKE: fallos detectados"; exit 1; fi

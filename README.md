@@ -33,7 +33,9 @@ La mesa de luz vive también en la **bandeja del sistema**
    (binario, GUI, icono, regla udev y unidades de usuario). Debian 12:
    el CLI funciona; la mesa de luz nativa exige libadwaita ≥ 1.5 (ver matriz).
 2. **Script local (`~/.local`):** `./scripts/install.sh`
-   (pide sudo para udev, sysusers y tmpfiles).
+   (pide sudo para udev, sysusers y tmpfiles). Si falla la sección root,
+   el script sale distinto de 0 (sin `OK:`). El `.desktop` de usuario apunta
+   a `~/.local/bin/ilutex-gui` con ruta absoluta.
 3. **npm (solo CLI):** `npm install -g ilutex` instala el binario
    precompilado (Linux x86_64/arm64) y, si el postinstalador lo permite, la
    regla udev y unidades de usuario. **No** incluye la mesa de luz GTK ni
@@ -44,6 +46,11 @@ La mesa de luz vive también en la **bandeja del sistema**
    como probado. Mientras tanto: script local o binario de la release.
 5. **Fedora:** usa el script local o el CLI de npm. El empaquetado RPM **no
    está verificado** aún.
+
+**Precedencia de canales.** En el `PATH` un shim de mise (u otro gestor)
+puede ganar a `/usr/bin`, y `/usr/bin` gana a `~/.local/bin`. El instalador
+avisa si detecta un `ilutex` más antiguo por delante. El menú de aplicaciones
+(usuario) no depende del `PATH`: usa `Exec` absoluto a `ilutex-gui`.
 
 **Instalar ≠ autorizar.** El paquete crea el grupo `ilutex` y el candado
 `/run/ilutex/writer.lock`, pero **no** añade tu usuario al grupo. Para
