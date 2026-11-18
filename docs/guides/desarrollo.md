@@ -109,7 +109,7 @@ Contrato único en `gui/__init__.py`:
   ```bash
   gpg --import packaging/keys/ilutex-release.asc
   gpg --verify SHA256SUMS.asc SHA256SUMS
-  gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --owner Alexendros
+  gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --repo Soluciones-Alexendros/ilutex
   ```
 - **npm**: `.github/workflows/npm.yml` compila x86_64 y arm64 y publica el
   meta-paquete `ilutex` (lanzador + postinstalador de regla udev y

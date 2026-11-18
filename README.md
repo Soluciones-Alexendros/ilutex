@@ -69,7 +69,7 @@ procedencia de GitHub. Verificación:
 ```bash
 gpg --import packaging/keys/ilutex-release.asc   # cuando exista la pública
 gpg --verify SHA256SUMS.asc SHA256SUMS
-gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --owner Alexendros
+gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --repo Soluciones-Alexendros/ilutex
 ```
 
 La clave pública de release vive en `packaging/keys/` (ver

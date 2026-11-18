@@ -113,9 +113,19 @@ jobs:
             exit 1
           fi
           # Importa la clave privada de release (ASCII-armor en el secret).
+          # Debe ser un par sin passphrase: no hay secret de PIN en el runner.
           printf '%s\n' "$ILUTEX_RELEASE_GPG_KEY" | gpg --batch --import
-          gpg --batch --yes --detach-sign --armor \
-            --output dist/SHA256SUMS.asc dist/SHA256SUMS
+          FPR="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')"
+          if [ -z "${FPR}" ]; then
+            echo "::error::No se obtuvo fingerprint tras importar ILUTEX_RELEASE_GPG_KEY."
+            exit 1
+          fi
+          if ! gpg --batch --yes --pinentry-mode loopback --local-user "$FPR" \
+            --detach-sign --armor --output dist/SHA256SUMS.asc dist/SHA256SUMS
+          then
+            echo "::error::Fallo al firmar SHA256SUMS (¿clave con passphrase? CI no soporta PIN)."
+            exit 1
+          fi
           gpg --verify dist/SHA256SUMS.asc dist/SHA256SUMS
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2

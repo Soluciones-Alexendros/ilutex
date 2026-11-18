@@ -4,7 +4,7 @@
 
 | Job | Qué hace |
 | --- | -------- |
-| `quality` | `gitleaks` CLI (binario pinado; sin `gitleaks-action` ni licencia org); `cargo fmt --check`; `clippy --all-targets -D warnings` (+ `clippy::cognitive_complexity`); rustdoc `-D warnings`; `cargo audit` (instalado en el runner); lockfile solo-`ilutex` (ADR 2); `py_compile gui/*.py`; `scripts/check-gui-imports.py`; shellcheck; i18n; suite GUI con xvfb |
+| `quality` | `gitleaks` CLI (binario pinado + checksum SHA256; sin `gitleaks-action` ni licencia org); `cargo fmt --check`; `clippy --all-targets -D warnings` (+ `clippy::cognitive_complexity`); rustdoc `-D warnings`; `cargo audit` (versión pinada en el runner); lockfile solo-`ilutex` (ADR 2); `py_compile gui/*.py`; `scripts/check-gui-imports.py` + unittest del checker; shellcheck; i18n; suite GUI con xvfb |
 | `test` | `cargo test --locked -- --test-threads=1` y `cargo run --release --example bench_colors` (sale 0; sin umbral de tiempo) |
 | `test-arm64` | `cargo test --locked` en `ubuntu-24.04-arm` (entra en `ci-gate`) |
 | `build` | `cargo build --release --locked` y artefacto del binario |
@@ -18,7 +18,7 @@ Workflows aparte (no bloquean `ci-gate`):
 | Workflow | Qué hace |
 | --- | -------- |
 | Code Scanning (default setup) | CodeQL del repo (GitHub); no hay `codeql.yml` advanced — choca con default setup |
-| `scorecard.yml` | OpenSSF Scorecard en `main` y cron semanal |
+| `scorecard.yml` | OpenSSF Scorecard en `main` y cron semanal (`publish_results: true` hacia OpenSSF; sin upload SARIF a Code Scanning — choca con default setup) |
 
 `release.yml` (tag `v*`) sigue aparte: `cargo test/build --locked`, suite Python (unittest + xvfb como `quality`), smoke, `.deb`, SBOM, `SHA256SUMS` + firma GPG (`SHA256SUMS.asc`), attestation de procedencia. Exporta `SOURCE_DATE_EPOCH` desde el commit del tag (no afirma builds bit a bit).
 

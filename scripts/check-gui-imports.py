@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Comprueba que gui/*.py no importe paquetes pip de terceros.
 
+El glob es solo ``gui/*.py`` (módulos de primer nivel). No incluye
+``gui/tests/`` ni subdirectorios.
+
 Permitidos:
 - biblioteca estándar de Python
 - bindings de sistema del stack GTK: ``gi`` (PyGObject) y ``cairo``
