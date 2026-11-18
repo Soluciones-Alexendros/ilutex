@@ -157,8 +157,10 @@ jobs:
         run: |
           set -euo pipefail
           # Pin 2.10.1 (2026-11-18): última estable vista en PyPI al cerrar H-04.
+          # --disable-pip: requirements con hashes; no instalar/compilar
+          # PyGObject/pycairo (cairo.pc) solo para auditar pins en OSV/PyPI.
           python3 -m pip install --user 'pip-audit==2.10.1'
-          python3 -m pip_audit -r gui/requirements.txt
+          python3 -m pip_audit --disable-pip -r gui/requirements.txt
       - name: GUI pip-licenses
         run: |
           set -euo pipefail
