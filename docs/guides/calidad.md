@@ -4,7 +4,7 @@
 
 | Job | Qué hace |
 | --- | -------- |
-| `quality` | `gitleaks`; `cargo fmt --check`; `clippy --all-targets -D warnings` (+ `clippy::cognitive_complexity`); rustdoc `-D warnings`; `cargo audit` (instalado en el runner); lockfile solo-`ilutex` (ADR 2); `py_compile gui/*.py`; `scripts/check-gui-imports.py`; shellcheck; i18n; suite GUI con xvfb |
+| `quality` | `gitleaks` CLI (binario pinado; sin `gitleaks-action` ni licencia org); `cargo fmt --check`; `clippy --all-targets -D warnings` (+ `clippy::cognitive_complexity`); rustdoc `-D warnings`; `cargo audit` (instalado en el runner); lockfile solo-`ilutex` (ADR 2); `py_compile gui/*.py`; `scripts/check-gui-imports.py`; shellcheck; i18n; suite GUI con xvfb |
 | `test` | `cargo test --locked -- --test-threads=1` y `cargo run --release --example bench_colors` (sale 0; sin umbral de tiempo) |
 | `test-arm64` | `cargo test --locked` en `ubuntu-24.04-arm` (entra en `ci-gate`) |
 | `build` | `cargo build --release --locked` y artefacto del binario |
