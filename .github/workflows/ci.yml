@@ -237,6 +237,11 @@ jobs:
           export XDG_CACHE_HOME="$TMP_HOME/cache"
           export XDG_STATE_HOME="$TMP_HOME/state"
           export GDK_BACKEND=x11
+          # Ubuntu 24.04+ bloquea uid_map en userns sin perfil (AppArmor).
+          # Sin esto, `unshare -rn` sale con "write failed /proc/self/uid_map".
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns >/dev/null
+          fi
           unshare -rn xvfb-run -a dbus-run-session -- \
             python3 -m unittest discover -s gui/tests -v
       - name: shellcheck
