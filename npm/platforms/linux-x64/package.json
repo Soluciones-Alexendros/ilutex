@@ -1,6 +1,6 @@
 {
   "name": "ilutex-linux-x64",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Binario precompilado de iLutex para Linux x86_64",
   "license": "MIT",
   "type": "commonjs",

@@ -1,4 +1,4 @@
-.PHONY: lint test smoke build validate help i18n check-i18n check-version
+.PHONY: lint test smoke build validate help i18n check-i18n check-version check-installed
 
 CARGO := cargo
 VERSION := $(shell sed -nE 's/^version *= *"([^"]+)".*/\1/p' Cargo.toml | head -1)
@@ -27,7 +27,10 @@ build: ## Binario release (artefacto)
 check-version: ## Verifica paridad Cargo npm tag CHANGELOG
 	bash scripts/check-version.sh
 
-validate: lint test smoke check-version ## Fachada local = quality + test + smoke + version
+check-installed: ## Compara Cargo.toml con binarios/unidades/desktop instalados
+	bash scripts/check-installed.sh
+
+validate: lint test smoke check-version check-installed ## Fachada local = quality + test + smoke + version + installed
 
 i18n: ## Regenera po/ilutex.pot y compila los .mo en gui/locale
 	xgettext $(XGETTEXT_FLAGS) --output=po/ilutex.pot gui/*.py

@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034,SC2154
 pkgname=ilutex
-pkgver=3.1.0
+pkgver=3.1.1
 pkgrel=1
 pkgdesc="iLutex — control cromático del teclado AERO X16 vía HID LampArray"
 arch=('x86_64')
@@ -13,9 +13,10 @@ optdepends=('python-gobject: panel gráfico ilutex-gui' 'gtk4: panel gráfico il
 makedepends=('cargo' 'gettext')
 conflicts=('kbd-rgb' 'keybackcon')
 replaces=('kbd-rgb' 'keybackcon')
-# Checksum del tarball del tag v3.0.2 publicado en GitHub (no reproducible:
-# usar `updpkgsums` tras publicar cada tag). Falta la prueba en chroot limpio
-# antes de anunciar el paquete en AUR (ver docs/compatibility/matriz.md).
+# Checksum del tarball del tag publicado en GitHub (no reproducible).
+# Caduca al subir pkgver: tras `git tag v${pkgver}` ejecuta `updpkgsums`.
+# Falta la prueba en chroot limpio antes de anunciar el paquete en AUR
+# (ver docs/compatibility/matriz.md).
 sha256sums=('ec533c0262bffe2288d6bd45d299c9fd1d34aafeb9ed882e4f10b07680d282e0')
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 
@@ -34,7 +35,11 @@ package() {
   install -Dm755 target/release/ilutex "${pkgdir}/usr/bin/ilutex"
   install -Dm755 packaging/ilutex-gui "${pkgdir}/usr/bin/ilutex-gui"
   install -Dm644 gui/*.py "${pkgdir}/usr/share/ilutex/gui/"
-  install -Dm644 packaging/desktop/ilutex.desktop "${pkgdir}/usr/share/applications/ilutex.desktop"
+  install -d "${pkgdir}/usr/share/applications"
+  # Exec absoluto: el menú no debe depender del PATH (shim mise, ~/.local, …).
+  sed 's|^Exec=ilutex-gui$|Exec=/usr/bin/ilutex-gui|' \
+    packaging/desktop/ilutex.desktop \
+    > "${pkgdir}/usr/share/applications/ilutex.desktop"
   install -Dm644 assets/icons/ilutex.svg "${pkgdir}/usr/share/icons/hicolor/scalable/apps/ilutex.svg"
   install -Dm644 packaging/udev/70-ilutex.rules "${pkgdir}/usr/lib/udev/rules.d/70-ilutex.rules"
   install -Dm644 packaging/systemd/ilutex.service "${pkgdir}/usr/lib/systemd/user/ilutex.service"

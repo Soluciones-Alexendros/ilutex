@@ -20,7 +20,7 @@ CONTROL_XML = """
 </node>
 """
 
-USAGE = """Uso: main.py [--tray] [--tray-child] [--preferences] [-h | --help]
+USAGE = """Uso: main.py [--tray] [--tray-child] [--preferences] [--version] [-h | --help]
 
 iLutex — ventana y bandeja del sistema.
 
@@ -29,6 +29,7 @@ Opciones:
   --tray-child    Ventana hija de la bandeja: el botón X la oculta en vez
                   de cerrarla y expone el control D-Bus de la ventana.
   --preferences   Abre la ventana mostrando Preferencias (sin --tray).
+  --version       Imprime la versión y sale con código 0 (sin GTK).
   -h, --help      Muestra esta ayuda y sale con código 0."""
 
 
@@ -424,6 +425,10 @@ def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
     if "-h" in args or "--help" in args:
         print_usage()
+        return 0
+    if "--version" in args or "-V" in args:
+        # Antes de GTK e i18n: diagnóstico rápido sin dependencias de display.
+        print("ilutex-gui %s" % _app_version())
         return 0
     _setup_i18n()
     if "--tray" in args:

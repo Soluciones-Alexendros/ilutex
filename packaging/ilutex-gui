@@ -22,6 +22,21 @@ if [ -z "$gui_dir" ]; then
   exit 1
 fi
 
+# --version antes de buscar PyGObject: sirve para diagnóstico sin GTK.
+for arg in "$@"; do
+  case "$arg" in
+    --version|-V)
+      ver=""
+      if [ -f "$gui_dir/__init__.py" ]; then
+        ver="$(sed -nE 's/^__version__[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$gui_dir/__init__.py" | head -1)"
+      fi
+      [ -n "$ver" ] || ver="desconocida"
+      echo "ilutex-gui ${ver}"
+      exit 0
+      ;;
+  esac
+done
+
 has_gtk() {
   "$1" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1"); from gi.repository import Gtk, Adw' \
     >/dev/null 2>&1

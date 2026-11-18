@@ -79,7 +79,8 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck scripts/install.sh scripts/smoke.sh packaging/ilutex-gui \
+          shellcheck scripts/install.sh scripts/smoke.sh scripts/check-installed.sh \
+            scripts/test-install-root-fail.sh packaging/ilutex-gui \
             packaging/debian/postinst packaging/debian/prerm packaging/aur/PKGBUILD
       - name: desktop-file-validate
         run: |
