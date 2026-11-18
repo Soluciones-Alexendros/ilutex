@@ -6,19 +6,15 @@ qué). Los hitos ya logrados van al final como histórico.
 
 ## En curso
 
-- [ ] **Estabilización post-auditoría (2026-11-10)** — lotes P1/P2 en vuelo
-      (permisos/candado, estado concurrente, GUI async, CI gráfico, identidad
-      de procesos, docs). Criterio: hallazgos canónicos con PR mergeado y
-      evidencia de prueba; no declarar «sin bloqueos» mientras queden P1
-      abiertos. Trazas en el registro Notion de hallazgos/correcciones.
-- [ ] **v2.5.0 publicada** — ya en `main`, GitHub Releases y npm; el
-      versionado etiqueta desde el job que abre el PR de release.
+Ningún hito abierto frente a `3.1.1` (`Cargo.toml` / tag de `main`). El
+trabajo pendiente ya tipificado sigue en corto y medio plazo.
 
 ## Corto plazo
 
-- [ ] **Cerrar deuda documental y de empaquetado menor** — AUR (`sha256sums`
-      + `.SRCINFO` + cuenta), prueba de `npm install -g` en Debian/Arch
-      limpios, y hallazgos docs/CI P2 restantes con criterio de aceptación.
+- [ ] **Cerrar deuda documental y de empaquetado menor** — prueba de
+      `npm install -g` en Debian/Arch limpios, y hallazgos docs/CI P2
+      restantes con criterio de aceptación. (AUR `sha256sums` + `.SRCINFO`
+      ya en `3.0.1`.)
 - [ ] **Decisiones de contrato pendientes** — ítems clasificados como
       decisión (CLI/restore multi-autoridad, etc.) no se implementan hasta
       ADR o ratificación explícita.
@@ -31,6 +27,9 @@ qué). Los hitos ya logrados van al final como histórico.
 - [ ] **Más teclados** — hacer configurables la firma del descriptor HID y
       la regla udev (VID/PID) vía variable de entorno o flag, si aparece
       demanda de otros modelos LampArray. Requiere Fase 5 / hardware.
+      (`ILUTEX_VID`/`ILUTEX_PID`/`ILUTEX_HID_SIGNATURE` ya permiten overrides
+      de desarrollo desde `3.0.1`; un contrato estable de producto sigue
+      pendiente de ADR.)
 
 ## Largo plazo / condicionado
 
@@ -38,8 +37,11 @@ qué). Los hitos ya logrados van al final como histórico.
       protocolo y la GUI ya separan "zona(s)" en la ficha del dispositivo.
 - [ ] **Modo "seguir el escritorio"** — leer el color de acento del sistema
       y ofrecerlo como filtro. Solo si se pide (ver ADR pendiente).
+      (En Omarchy el filtro «Seguir escritorio» ya existe desde `3.0.0`;
+      el alcance genérico fuera de Omarchy sigue condicionado.)
 - [ ] **Autostart vía unidad systemd del usuario** para la bandeja en vez
       del `.desktop` XDG, si se confirma que mejora el arranque en GNOME.
+      (`ilutex-tray.service` como fuente única de arranque ya en `3.0.4`.)
 
 ## Histórico
 
@@ -56,4 +58,12 @@ qué). Los hitos ya logrados van al final como histórico.
 - [x] v2.4.1 — `getgrnam` portable (aarch64), paquete npm publicado
 - [x] i18n real de la GUI — msgids en inglés y catálogos `es`/`en` completos (ADR 14)
 - [x] CI: tests de la GUI — cobertura del control D-Bus de `main.py` (`Toggle`/`Present`/`Quit`) con un bus de sesión privado en la suite
-- [x] v2.5.0 — i18n real (es/en), tests D-Bus de la ventana y release idempotente (`.deb` + tarball + SBOM + npm)
+- [x] v2.5.0 — i18n real (es/en), tests D-Bus de la ventana y release idempotente (`.deb` + tarball + SBOM + npm); publicada en GitHub Releases y npm
+- [x] Estabilización post-auditoría (2026-11-10) — lotes P1/P2 absorbidos en la línea 3.0.x / 3.1.x (permisos/candado, estado, GUI, CI, identidad, docs)
+- [x] v3.0.0 — renombre a iLutex, migración desde keybackcon/kbd-rgb, Omarchy (acento e idioma en vivo), accesibilidad, check de versiones, empaquetado omarchy-pkgs
+- [x] v3.0.1 — overrides `ILUTEX_VID`/`ILUTEX_PID`/`ILUTEX_HID_SIGNATURE`, AUR con `sha256sums` y `.SRCINFO`
+- [x] v3.0.2 — índices npm con `bin/ilutex`; `check-npm-platforms.py`
+- [x] v3.0.3 — barrido de residuos `keybackcon`; `check-legacy-names.py`
+- [x] v3.0.4 — `ilutex-tray.service` como fuente única de bandeja; rutas locales en unidades
+- [x] v3.1.0 — instalación offline (`ILUTEX_ROOT`); smoke del árbol escenificado
+- [x] v3.1.1 — instalador veraz, `ilutex-gui --version` sin GTK, Exec absoluto en desktop de usuario, `make check-installed`

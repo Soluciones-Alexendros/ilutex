@@ -7,6 +7,14 @@ ExecStart=__ILUTEX_BIN__ animation %i
 ExecStopPost=__ILUTEX_BIN__ stop
 Restart=no
 Nice=10
+# Endurecimiento: sin PrivateDevices (HID /dev/hidraw*) ni ProtectHome (XDG_STATE_HOME).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectClock=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
 
 [Install]
 WantedBy=default.target

@@ -18,6 +18,8 @@ Detalle en [`docs/guides/desarrollo.md`](docs/guides/desarrollo.md).
 
 Rama `feat/*` / `fix/*` / `docs/*` / `chore/*` → PR → squash → merge a `main`. Los tags `vX.Y.Z` los lanza el mantenedor; `release.yml` publica artefactos.
 
+El revisor canónico es el owner declarado en [`.github/CODEOWNERS`](.github/CODEOWNERS) (`* @Alexendros`). La protección de la rama `main` (required reviews, status checks, etc.) es un ajuste de GitHub **fuera** de este repositorio; este documento no la inspecciona ni la afirma.
+
 ## Antes de un PR
 
 ```bash

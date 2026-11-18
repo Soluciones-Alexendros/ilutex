@@ -10,6 +10,13 @@ ExecStart=/usr/bin/ilutex-gui --tray
 # Si el host de bandeja no estaba listo, reintenta sin ensuciar el journal.
 Restart=on-failure
 RestartSec=5
+# Endurecimiento: sin PrivateDevices, ProtectHome ni MemoryDenyWriteExecute (Python/GTK).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectClock=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
 
 [Install]
 WantedBy=graphical-session.target

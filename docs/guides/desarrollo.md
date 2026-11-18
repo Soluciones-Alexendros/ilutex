@@ -98,8 +98,19 @@ Contrato único en `gui/__init__.py`:
 - **GitHub Releases**: al empujar un tag `vX.Y.Z`,
   `.github/workflows/release.yml` publica el tarball
   `ilutex-vX.Y.Z-linux-x86_64.tar.gz`, el `.deb`, un SBOM CycloneDX
-  (`cargo-cyclonedx`), `SHA256SUMS` y una attestation de procedencia
-  (`actions/attest-build-provenance`).
+  (`cargo-cyclonedx`), `SHA256SUMS` firmado (`SHA256SUMS.asc`, secret
+  `ILUTEX_RELEASE_GPG_KEY`) y attestation de procedencia
+  (`actions/attest-build-provenance`). Exporta `SOURCE_DATE_EPOCH` desde
+  el commit del tag; el tarball de GitHub no es reproducible bit a bit.
+  Clave pública: `packaging/keys/` (ver
+  [`packaging/keys/README.md`](../../packaging/keys/README.md)).
+  Comprobar un artefacto:
+
+  ```bash
+  gpg --import packaging/keys/ilutex-release.asc
+  gpg --verify SHA256SUMS.asc SHA256SUMS
+  gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --owner Alexendros
+  ```
 - **npm**: `.github/workflows/npm.yml` compila x86_64 y arm64 y publica el
   meta-paquete `ilutex` (lanzador + postinstalador de regla udev y
   unidades systemd de usuario) junto a los paquetes de binario por
@@ -125,6 +136,12 @@ Ejemplo:
 ```bash
 ILUTEX_VID=0x1234 ILUTEX_PID=0x5678 cargo run -- info
 ```
+
+`ILUTEX_VID` e `ILUTEX_PID` son contrato de **desarrollo** hasta que un ADR
+diga lo contrario. Un cambio incompatible (retirarlas, renombrarlas o alterar
+su semántica de forma que rompa scripts existentes) se anuncia en
+`CHANGELOG.md` y deja **una release de por medio** antes de aplicarlo, para
+dar margen a quien las use en pruebas.
 
 En tests unitarios: `crate::TEST_ENV_LOCK` serializa el acceso a `std::env`.
 Ver tests en `src/protocol.rs` (`device_signature_tests`) y `src/lamp.rs`

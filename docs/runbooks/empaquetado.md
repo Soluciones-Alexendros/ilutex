@@ -13,7 +13,20 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-`.github/workflows/release.yml` publica tarball, `.deb`, SBOM CycloneDX, `SHA256SUMS` y attestation.
+`.github/workflows/release.yml` publica tarball, `.deb`, SBOM CycloneDX,
+`SHA256SUMS`, la firma `SHA256SUMS.asc` y attestation de procedencia.
+Exporta `SOURCE_DATE_EPOCH` con la fecha del commit del tag (no afirma
+builds bit a bit). Requiere el secret `ILUTEX_RELEASE_GPG_KEY`; sin él el
+job falla. La pública va en `packaging/keys/ilutex-release.asc` (ver
+[`packaging/keys/README.md`](../../packaging/keys/README.md)).
+
+Verificación del consumidor:
+
+```bash
+gpg --import packaging/keys/ilutex-release.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --owner Alexendros
+```
 
 ## Fallos típicos
 

@@ -12,6 +12,14 @@ RemainAfterExit=yes
 # Al iniciar sesión las ACL uaccess pueden no estar aplicadas todavía.
 Restart=on-failure
 RestartSec=3
+# Endurecimiento: sin PrivateDevices (HID /dev/hidraw*) ni ProtectHome (XDG_STATE_HOME).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectClock=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
 
 [Install]
 WantedBy=graphical-session.target
