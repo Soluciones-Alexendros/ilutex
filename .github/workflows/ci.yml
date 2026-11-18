@@ -1,15 +1,17 @@
 name: CI
 
+# Un solo grupo por commit: evita carreras si coinciden eventos.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
+# PRs: solo pull_request (un run). push a todas las ramas duplicaba con el
+# evento del PR (refs/heads vs refs/pull/N/merge → concurrency no unificaba).
+# main sigue con push; el PR de release (RELEASE_PAT) encadena por pull_request.
 on:
   push:
+    branches: [main]
   pull_request:
-  # Versionado lo dispara tras crear la rama de release: ese push usa
-  # GITHUB_TOKEN y no encola workflows. Los checks de este SHA son los
-  # que main exige para el auto-merge.
   workflow_dispatch:
 
 permissions:

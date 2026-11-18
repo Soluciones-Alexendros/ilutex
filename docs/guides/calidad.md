@@ -13,6 +13,8 @@
 
 El job extra `msrv` comprueba toolchain 1.87. No es required-name del canon; se conserva porque el crate declara `rust-version = "1.87"`.
 
+Disparadores: `pull_request` (todas las ramas), `push` solo a `main`, y `workflow_dispatch`. Así un push a la rama de un PR no abre un segundo run paralelo al del evento `pull_request`. La concurrencia agrupa por SHA del head.
+
 Workflows aparte (no bloquean `ci-gate`):
 
 | Workflow | Qué hace |
