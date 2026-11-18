@@ -23,7 +23,7 @@ La mesa de luz vive también en la **bandeja del sistema**
    [release](https://github.com/Soluciones-Alexendros/ilutex/releases)
    (o el script local; ver abajo).
 2. Fija un color: `ilutex set ff7800`.
-3. Abre la mesa de luz: `ilutex-gui` (requiere GTK4 y libadwaita ≥ 1.5).
+3. Abre la mesa de luz: `ilutex-gui` (requiere GTK ≥ 4.14 y libadwaita ≥ 1.5).
 
 ## Instalación
 
@@ -31,11 +31,15 @@ La mesa de luz vive también en la **bandeja del sistema**
    de cada [release](https://github.com/Soluciones-Alexendros/ilutex/releases)
    e instala con `sudo apt install ./ilutex_X.Y.Z-1_amd64.deb`
    (binario, GUI, icono, regla udev y unidades de usuario). Debian 12:
-   el CLI funciona; la mesa de luz nativa exige libadwaita ≥ 1.5 (ver matriz).
-2. **Script local (`~/.local`):** `./scripts/install.sh`
-   (pide sudo para udev, sysusers y tmpfiles). Si falla la sección root,
-   el script sale distinto de 0 (sin `OK:`). El `.desktop` de usuario apunta
-   a `~/.local/bin/ilutex-gui` con ruta absoluta.
+   el CLI funciona; la mesa de luz nativa exige GTK ≥ 4.14 y libadwaita ≥ 1.5 (ver matriz).
+2. **Script local (`~/.local`):** `./scripts/install.sh` orquesta
+   `install-cli.sh` (binario + udev/sysusers/tmpfiles; pide sudo) e
+   `install-gui.sh` (mesa de luz, desktop, icono, unidades de usuario; sin
+   sudo). Si falla la sección root, sale distinto de 0 (sin `OK:`). El
+   `.desktop` de usuario apunta a `~/.local/bin/ilutex-gui` con ruta absoluta.
+   Por defecto compila el árbol local (sin red). Para instalar un release
+   publicado: `./scripts/install.sh --release vX.Y.Z` (descarga el tarball y
+   `SHA256SUMS`, verifica checksums y, si `gh` está autenticado, attestation).
 3. **npm (solo CLI):** `npm install -g ilutex` instala el binario
    precompilado (Linux x86_64/arm64) y, si el postinstalador lo permite, la
    regla udev y unidades de usuario. **No** incluye la mesa de luz GTK ni
@@ -82,14 +86,14 @@ Matriz completa (probado / candidato / experimental / no soportado):
 ## Compatibilidad
 
 El CLI es un binario sin crates externos (sí depende de libc y del kernel).
-La mesa de luz necesita **GTK 4** y **libadwaita ≥ 1.5**. La bandeja
-(Ayatana) es opcional y separada.
+La mesa de luz necesita **GTK ≥ 4.14** y **libadwaita ≥ 1.5**. La bandeja
+(StatusNotifierItem vía Gio; host SNI del escritorio) es opcional y separada.
 
-| Distro | Instalación | CLI | GUI (Adw ≥ 1.5) |
+| Distro | Instalación | CLI | GUI (GTK ≥ 4.14 · Adw ≥ 1.5) |
 |---|---|---|---|
-| Debian 12 | `.deb` / script | Candidato | No soportada (Adw 1.2) |
-| Debian 13 / Ubuntu 24.04+ | `.deb` / script | Candidato | Candidato si Adw ≥ 1.5 |
-| Ubuntu 22.04 | `.deb` / script | Candidato | No anunciada hasta medir Adw ≥ 1.5 |
+| Debian 12 | `.deb` / script | Candidato | No soportada (GTK &lt; 4.14, Adw 1.2) |
+| Debian 13 / Ubuntu 24.04+ | `.deb` / script | Candidato | Candidato (GTK ≥ 4.14 y Adw ≥ 1.5) |
+| Ubuntu 22.04 | `.deb` / script | Candidato | No soportada (GTK &lt; 4.14) |
 | Arch | script / release | Candidato | Candidato; AUR no acreditado |
 | Fedora | script / npm CLI | Candidato | Candidato; RPM no verificado |
 | openSUSE | — | Fuera del alcance anunciado | — |

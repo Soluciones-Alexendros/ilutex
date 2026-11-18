@@ -856,6 +856,79 @@ mod tests {
             parse(&args(&["restore"])),
             Ok(Command::Restore { on_login: false })
         ));
+        assert!(matches!(
+            parse(&args(&["restore", "--on-login"])),
+            Ok(Command::Restore { on_login: true })
+        ));
+    }
+
+    #[test]
+    fn parse_help_y_version() {
+        assert!(matches!(parse(&args(&["--help"])), Ok(Command::Help)));
+        assert!(matches!(parse(&args(&["-h"])), Ok(Command::Help)));
+        assert!(matches!(parse(&args(&["help"])), Ok(Command::Help)));
+        assert!(matches!(parse(&args(&["--version"])), Ok(Command::Version)));
+        assert!(matches!(parse(&args(&["-V"])), Ok(Command::Version)));
+    }
+
+    #[test]
+    fn parse_set_off_stop_y_brightness_absoluto() {
+        assert!(matches!(
+            parse(&args(&["set", "red"])),
+            Ok(Command::Set((255, 0, 0)))
+        ));
+        assert!(matches!(
+            parse(&args(&["set", "no-color"])),
+            Err(Error::Invalid(_))
+        ));
+        assert!(matches!(parse(&args(&["set"])), Err(Error::Invalid(_))));
+        assert!(matches!(parse(&args(&["off"])), Ok(Command::Off)));
+        assert!(matches!(parse(&args(&["stop"])), Ok(Command::Stop)));
+        assert!(matches!(
+            parse(&args(&["brightness", "40"])),
+            Ok(Command::Brightness(BrightnessChange::Set(40)))
+        ));
+        assert!(matches!(
+            parse(&args(&["brightness", "x"])),
+            Err(Error::Invalid(_))
+        ));
+        assert!(matches!(parse(&args(&[])), Err(Error::Usage)));
+        assert!(matches!(parse(&args(&["desconocido"])), Err(Error::Usage)));
+    }
+
+    #[test]
+    fn help_text_mode_y_brightness_delta_puros() {
+        let h = help_text();
+        assert!(h.contains(BIN), "{h}");
+        assert!(h.contains("predefinidos:"), "{h}");
+        assert!(h.contains("red"), "{h}");
+        assert!(h.contains("animation"), "{h}");
+        assert_eq!(Mode::Breathe.as_str(), "breathe");
+        assert_eq!(Mode::Rainbow.as_str(), "rainbow");
+        assert_eq!(brightness_delta(&BrightnessChange::Set(40), 10), 40);
+        assert_eq!(brightness_delta(&BrightnessChange::Set(200), 10), 100);
+        assert_eq!(brightness_delta(&BrightnessChange::Up(15), 90), 100);
+        assert_eq!(brightness_delta(&BrightnessChange::Down(15), 10), 0);
+        assert_eq!(brightness_delta(&BrightnessChange::Up(5), 50), 55);
+        assert_eq!(brightness_delta(&BrightnessChange::Down(5), 50), 45);
+    }
+
+    #[test]
+    fn info_humano_con_prefs_ok() {
+        let path = std::path::Path::new("/dev/hidraw9");
+        let st = state::PersistedState {
+            base_color: (1, 2, 3),
+            brightness: 33,
+            power: "on".into(),
+            mode: "fijar".into(),
+            ..Default::default()
+        };
+        let human = format_info_report(path, 2, 7, Ok(&st), false);
+        assert!(human.contains("dispositivo : /dev/hidraw9"), "{human}");
+        assert!(human.contains("nº lámparas : 2"), "{human}");
+        assert!(human.contains("#010203"), "{human}");
+        assert!(human.contains("%33"), "{human}");
+        assert!(human.contains("modo        : fijar"), "{human}");
     }
 
     #[test]

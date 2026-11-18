@@ -4,6 +4,7 @@ from __future__ import annotations
 
 MIN_ADW_MINOR = 5  # libadwaita 1.5 (ToolbarView, PreferencesDialog, AlertDialog)
 MIN_GTK_MAJOR = 4
+MIN_GTK_MINOR = 14  # GTK ≥ 4.14 (matriz G-07)
 
 
 def adw_version_tuple():
@@ -43,8 +44,14 @@ def check_gui_requirements() -> tuple[bool, str]:
     gtk = gtk_version_tuple()
     if gtk is None:
         return False, "GTK 4 no está disponible (python3-gi / gir1.2-gtk-4.0)."
-    if gtk[0] < MIN_GTK_MAJOR:
-        return False, f"Se necesita GTK {MIN_GTK_MAJOR}.x; encontrado {gtk[0]}.{gtk[1]}."
+    if gtk[0] < MIN_GTK_MAJOR or (
+        gtk[0] == MIN_GTK_MAJOR and gtk[1] < MIN_GTK_MINOR
+    ):
+        return (
+            False,
+            f"Se necesita GTK ≥ {MIN_GTK_MAJOR}.{MIN_GTK_MINOR}; "
+            f"encontrado {gtk[0]}.{gtk[1]}.{gtk[2]}.",
+        )
     adw = adw_version_tuple()
     if adw is None:
         return False, "libadwaita no está disponible (gir1.2-adw-1)."

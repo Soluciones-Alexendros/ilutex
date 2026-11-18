@@ -14,6 +14,17 @@ categories = ["hardware-support", "command-line-utilities"]
 name = "ilutex"
 path = "src/main.rs"
 
+# Paquete binario-only: los benches no enlazan una lib; incluyen módulos
+# con #[path] (mismo patrón que examples/bench_colors.rs). harness = false
+# es obligatorio para criterion.
+[[bench]]
+name = "set_bench"
+harness = false
+
+[[bench]]
+name = "info_bench"
+harness = false
+
 [lints.rust]
 missing_docs = "warn"
 
@@ -29,6 +40,9 @@ codegen-units = 1
 [profile.dev]
 opt-level = 0
 
+[dev-dependencies]
+criterion = "0.8.2"
+
 [package.metadata.deb]
 name = "ilutex"
 maintainer = "Alexendros <operaciones@alexendros.dev>"
@@ -36,7 +50,7 @@ copyright = "2026, Alexendros"
 license-file = ["LICENSE", "4"]
 revision = "1"
 depends = "$auto"
-recommends = "python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, python3-cairo, gir1.2-ayatanaappindicator3-0.1"
+recommends = "python3, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1, python3-cairo"
 section = "utils"
 priority = "optional"
 maintainer-scripts = "packaging/debian"

@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -8,12 +10,25 @@ import unittest
 from unittest import mock
 
 from gui.client import (
+    INSTALL_BIN,
     IlutexClient,
     IlutexError,
+    PKEXEC_BIN,
+    UDEVADM_BIN,
+    UDEV_DEST,
+    UDEV_PACKAGED_SRC,
+    UDEV_PKEXEC_ALLOWED_PATHS,
+    UDEV_RULES_SHA256,
     find_binary,
     pid_paths,
     state_paths,
     udev_install_argv,
+    udev_pkexec_argv_ok,
+    udev_pkexec_commands,
+    udev_reload_argv,
+    udev_rules_digest,
+    udev_source_verified,
+    udev_trigger_argv,
 )
 
 
@@ -103,14 +118,112 @@ class TestRutas(unittest.TestCase):
         finally:
             env.restaurar()
 
-    def test_udev_install_argv_no_interpolo_rutas(self):
-        argv = udev_install_argv("/tmp/src rules", "/etc/udev/rules.d/70 x.rules")
-        self.assertEqual(argv[0:3], ["pkexec", "sh", "-c"])
-        # Las rutas viajan como argumentos tras 'sh', nunca interpoladas.
-        self.assertEqual(argv[4:], ["sh", "/tmp/src rules", "/etc/udev/rules.d/70 x.rules"])
-        self.assertNotIn("/tmp/src rules", argv[3])
-        self.assertIn('"$1"', argv[3])
-        self.assertIn('"$2"', argv[3])
+    def test_udev_hash_constante_coincide_con_packaging(self):
+        root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        path = os.path.join(root, "packaging", "udev", "70-ilutex.rules")
+        with open(path, "rb") as f:
+            digest = hashlib.sha256(f.read()).hexdigest()
+        self.assertEqual(digest, UDEV_RULES_SHA256)
+        self.assertEqual(udev_rules_digest(path), UDEV_RULES_SHA256)
+
+    def test_udev_install_argv_absoluto_cuando_hash_ok(self):
+        with mock.patch("gui.client.udev_source_verified", return_value=True):
+            argv = udev_install_argv()
+        self.assertEqual(
+            argv,
+            [
+                PKEXEC_BIN,
+                INSTALL_BIN,
+                "-m",
+                "0644",
+                UDEV_PACKAGED_SRC,
+                UDEV_DEST,
+            ],
+        )
+        self.assertTrue(udev_pkexec_argv_ok(argv))
+        self.assertNotIn("sh", argv)
+        self.assertNotIn("-c", argv)
+
+    def test_udev_install_argv_none_si_hash_falla(self):
+        with mock.patch("gui.client.udev_source_verified", return_value=False):
+            self.assertIsNone(udev_install_argv())
+            self.assertIsNone(udev_pkexec_commands())
+
+    def test_udev_pkexec_commands_tres_llamadas_absolutas(self):
+        with mock.patch("gui.client.udev_source_verified", return_value=True):
+            cmds = udev_pkexec_commands()
+        self.assertIsNotNone(cmds)
+        assert cmds is not None
+        self.assertEqual(len(cmds), 3)
+        self.assertEqual(
+            cmds[0],
+            [
+                PKEXEC_BIN,
+                INSTALL_BIN,
+                "-m",
+                "0644",
+                UDEV_PACKAGED_SRC,
+                UDEV_DEST,
+            ],
+        )
+        self.assertEqual(
+            cmds[1],
+            [PKEXEC_BIN, UDEVADM_BIN, "control", "--reload"],
+        )
+        self.assertEqual(
+            cmds[2],
+            [PKEXEC_BIN, UDEVADM_BIN, "trigger", "--subsystem-match=hidraw"],
+        )
+        self.assertEqual(cmds[1], udev_reload_argv())
+        self.assertEqual(cmds[2], udev_trigger_argv())
+        for cmd in cmds:
+            self.assertTrue(udev_pkexec_argv_ok(cmd))
+
+    def test_udev_source_verified_rechaza_contenido_alterado(self):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(b"SUBSYSTEM==\"hidraw\", TAG+=\"uaccess\"\n# tampered\n")
+            path = tmp.name
+        try:
+            self.assertFalse(udev_source_verified(path))
+        finally:
+            os.unlink(path)
+
+    def test_gui_pkexec_solo_rutas_absolutas_permitidas(self):
+        """CI: gui/ no puede llamar pkexec con rutas relativas o fuera de allowlist."""
+        gui_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Construcción de argv con shell (no el rechazo defensivo de "sh"/"-c").
+        sh_c_argv = re.compile(
+            r"""\[\s*["'](?:/usr/bin/)?pkexec["']\s*,\s*["']sh["']\s*,\s*["']-c["']"""
+        )
+        elevation_paths = re.compile(
+            r'"(/(?:usr/bin/(?:pkexec|install|udevadm)|'
+            r"usr/lib/udev/rules\.d/[\w.-]+|etc/udev/rules\.d/[\w.-]+))"
+            r'"'
+        )
+        offenders = []
+        for name in sorted(os.listdir(gui_dir)):
+            if not name.endswith(".py"):
+                continue
+            path = os.path.join(gui_dir, name)
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            if sh_c_argv.search(text):
+                offenders.append("%s: pkexec with sh -c" % name)
+            for match in elevation_paths.finditer(text):
+                literal = match.group(1)
+                if literal not in UDEV_PKEXEC_ALLOWED_PATHS:
+                    offenders.append("%s: not allowlisted %s" % (name, literal))
+        with mock.patch("gui.client.udev_source_verified", return_value=True):
+            cmds = udev_pkexec_commands()
+        assert cmds is not None
+        for cmd in cmds:
+            self.assertTrue(udev_pkexec_argv_ok(cmd), cmd)
+            for arg in cmd:
+                if arg.startswith("/"):
+                    self.assertIn(arg, UDEV_PKEXEC_ALLOWED_PATHS)
+        self.assertEqual(offenders, [])
 
 
 class TestFindBinary(unittest.TestCase):

@@ -47,7 +47,7 @@ MIGRACION = [
     ("src/state.rs", "keybackcon/state"),
     ("src/animation.rs", "keybackcon/animation.pid"),
     ("gui/client.py", "keybackcon/state"),
-    ("scripts/install.sh", "keybackcon/state"),
+    ("scripts/install-cli.sh", "keybackcon/state"),
 ]
 
 MARCA_LEGADO = "legado:"

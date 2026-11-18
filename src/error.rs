@@ -39,3 +39,21 @@ impl From<io::Error> for Error {
         Error::Io(e)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error as _;
+
+    #[test]
+    fn display_y_source_cubren_las_variantes() {
+        assert_eq!(Error::Usage.to_string(), "uso incorrecto");
+        assert_eq!(Error::Invalid("x".into()).to_string(), "x");
+        let io_err = io::Error::other("disco");
+        let wrapped = Error::from(io_err);
+        assert!(wrapped.to_string().contains("disco"));
+        assert!(wrapped.source().is_some());
+        assert!(Error::Usage.source().is_none());
+        assert!(Error::Invalid("y".into()).source().is_none());
+    }
+}

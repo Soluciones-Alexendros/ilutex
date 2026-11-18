@@ -15,10 +15,13 @@ PAQUETES = {
         "zypper": ["python3-gobject", "gtk4", "libadwaita"],
     },
     "bandeja": {
-        "apt": ["gir1.2-ayatanaappindicator3-0.1", "python3-cairo"],
-        "pacman": ["libayatana-appindicator", "python-cairo"],
-        "dnf": ["libayatana-appindicator-gtk3", "python3-cairo"],
-        "zypper": ["libayatana-appindicator3-1", "python3-cairo"],
+        # SNI vía Gio (G-03): Ayatana ya no es requisito. Hace falta pycairo
+        # para el icono y un host StatusNotifier en la sesión (extensión,
+        # waybar, omarchy.tray, …), documentado aparte.
+        "apt": ["python3-cairo"],
+        "pacman": ["python-cairo"],
+        "dnf": ["python3-cairo"],
+        "zypper": ["python3-cairo"],
     },
     "herramientas": {
         "apt": ["gettext", "libglib2.0-bin"],

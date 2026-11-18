@@ -1,0 +1,57 @@
+name: Benchmark
+
+# Compara benches criterion de camino puro contra la baseline de main.
+# No mide el AERO X16: el presupuesto 50 ms p95 de `ilutex set` es manual
+# (docs/guides/desarrollo.md) y no debe fallar este workflow por hardware.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  criterion:
+    name: criterion
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+      - name: Baseline desde main
+        id: baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git checkout --force "$BASE_SHA"
+          if [ -f benches/set_bench.rs ] && [ -f benches/info_bench.rs ]; then
+            cargo bench --locked --bench set_bench --bench info_bench -- \
+              --save-baseline main --noplot
+            echo "have_baseline=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main aún no tiene benches criterion; se omite baseline"
+            echo "have_baseline=false" >> "$GITHUB_OUTPUT"
+          fi
+          git checkout --force "$HEAD_SHA"
+      - name: Criterion (comparar o guardar)
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ] \
+            && [ "${{ steps.baseline.outputs.have_baseline }}" = "true" ]; then
+            cargo bench --locked --bench set_bench --bench info_bench -- \
+              --baseline-lenient main --noplot
+          else
+            cargo bench --locked --bench set_bench --bench info_bench -- \
+              --save-baseline main --noplot
+          fi

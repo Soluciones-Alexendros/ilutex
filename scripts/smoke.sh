@@ -69,17 +69,50 @@ fi
 
 # Instalar ≠ autorizar (KBC-01/11): no invocar usermod (documentarlo en echo sí vale).
 if ! grep -E 'usermod[[:space:]]+-aG[[:space:]]+ilutex' \
-      "${REPO_DIR}/scripts/install.sh" "${REPO_DIR}/packaging/debian/postinst" \
+      "${REPO_DIR}/scripts/install-cli.sh" "${REPO_DIR}/scripts/install.sh" \
+      "${REPO_DIR}/packaging/debian/postinst" \
     | grep -vE 'echo |# ' | grep -q .; then
   ok "install/postinst sin usermod automático"
 else
   bad "usermod automático (debe ser preparación explícita)"
 fi
 
-if grep -q 'Instalar no te mete en el grupo\|autorización de escritura pendiente' "${REPO_DIR}/scripts/install.sh"; then
-  ok "install.sh documenta habilitación explícita"
+if grep -q 'Instalar no te mete en el grupo\|autorización de escritura pendiente' \
+     "${REPO_DIR}/scripts/install-cli.sh"; then
+  ok "install-cli.sh documenta habilitación explícita"
 else
-  bad "install.sh sin mensaje de habilitación explícita"
+  bad "install-cli.sh sin mensaje de habilitación explícita"
+fi
+
+# G-06: instaladores separados + orquestador documentado.
+if [ -x "${REPO_DIR}/scripts/install-cli.sh" ] \
+  && [ -x "${REPO_DIR}/scripts/install-gui.sh" ] \
+  && grep -q 'install-cli.sh' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'install-gui.sh' "${REPO_DIR}/scripts/install.sh"; then
+  ok "install.sh orquesta install-cli + install-gui"
+else
+  bad "reparto install-cli/install-gui"
+fi
+
+# H-07: --release verifica integridad; el camino por defecto no descarga.
+if grep -qE -- '--release' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'sha256sum -c SHA256SUMS --ignore-missing' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'gh attestation verify' "${REPO_DIR}/scripts/install.sh" \
+  && grep -q 'sin flags.*no usa la red\|Compila e instala desde el árbol local' \
+       "${REPO_DIR}/scripts/install.sh"; then
+  ok "install.sh --release con SHA256SUMS/attestation"
+else
+  bad "install.sh --release / integridad"
+fi
+
+# udev local: origen privilegiado /usr/lib; no copiar a ~/.local para pkexec.
+if grep -q '/usr/lib/udev/rules.d/70-ilutex.rules' "${REPO_DIR}/scripts/install-cli.sh" \
+  && ! grep -qF '~/.local/share/ilutex/70-ilutex.rules' \
+    "${REPO_DIR}/scripts/install-cli.sh" "${REPO_DIR}/scripts/install-gui.sh" \
+    "${REPO_DIR}/scripts/install.sh"; then
+  ok "install no usa ~/.local para regla udev privilegiada"
+else
+  bad "install udev ~/.local"
 fi
 
 if grep -q "ExecStart=/usr/bin/ilutex restore" "${REPO_DIR}/packaging/systemd/ilutex.service"; then
@@ -97,12 +130,12 @@ fi
 
 # La instalación local reescribe las rutas /usr/bin de las unidades; el
 # placeholder __ILUTEX_BIN__ pertenece a las plantillas de npm.
-if grep -q 's|/usr/bin/ilutex-gui|' "${REPO_DIR}/scripts/install.sh" \
-  && grep -q 's|/usr/bin/ilutex|' "${REPO_DIR}/scripts/install.sh" \
+if grep -q 's|/usr/bin/ilutex-gui|' "${REPO_DIR}/scripts/install-gui.sh" \
+  && grep -q 's|/usr/bin/ilutex|' "${REPO_DIR}/scripts/install-gui.sh" \
   && grep -q '__ILUTEX_BIN__' "${REPO_DIR}/npm/install.js"; then
-  ok "install.sh reescribe unidades a ~/.local/bin"
+  ok "install-gui.sh reescribe unidades a ~/.local/bin"
 else
-  bad "install.sh reescritura de unidades"
+  bad "install-gui.sh reescritura de unidades"
 fi
 
 # Bandeja: una unidad de usuario y una sola fuente de arranque.
@@ -113,8 +146,8 @@ else
   bad "systemd tray"
 fi
 
-if grep -q 'enable_unit ilutex-tray.service' "${REPO_DIR}/scripts/install.sh" \
-  && grep -q 'ilutex-tray.desktop' "${REPO_DIR}/scripts/install.sh" \
+if grep -q 'enable_unit ilutex-tray.service' "${REPO_DIR}/scripts/install-gui.sh" \
+  && grep -q 'ilutex-tray.desktop' "${REPO_DIR}/scripts/install-gui.sh" \
   && grep -q 'TRAY_UNIT' "${REPO_DIR}/gui/settings.py"; then
   ok "bandeja con una sola fuente de arranque"
 else
@@ -122,12 +155,13 @@ else
 fi
 
 # Omarchy: su barra es Quickshell; el instalador no debe sugerir Waybar.
-if grep -q 'omarchy bar add omarchy.tray' "${REPO_DIR}/scripts/install.sh" \
-  && grep -q 'config/waybar.ilutex-backup' "${REPO_DIR}/scripts/install.sh" \
+if grep -q 'omarchy bar add omarchy.tray' "${REPO_DIR}/scripts/install-gui.sh" \
+  && grep -q 'config/waybar.ilutex-backup' "${REPO_DIR}/scripts/install-gui.sh" \
+  && ! grep -q 'sudo pacman -S waybar' "${REPO_DIR}/scripts/install-gui.sh" \
   && ! grep -q 'sudo pacman -S waybar' "${REPO_DIR}/scripts/install.sh"; then
-  ok "install.sh adapta la bandeja a Omarchy sin duplicar barra"
+  ok "install-gui.sh adapta la bandeja a Omarchy sin duplicar barra"
 else
-  bad "install.sh bandeja Omarchy"
+  bad "install bandeja Omarchy"
 fi
 
 # Instalación offline (ILUTEX_ROOT): los ficheros root y el candado se
@@ -142,6 +176,7 @@ fi
 stage_ok=1
 for rel in \
   "etc/udev/rules.d/70-ilutex.rules" \
+  "usr/lib/udev/rules.d/70-ilutex.rules" \
   "usr/lib/sysusers.d/ilutex.conf" \
   "usr/lib/tmpfiles.d/ilutex.conf" \
   "run/ilutex/writer.lock"; do
@@ -161,33 +196,61 @@ else
 fi
 rm -rf "$stage_dir"
 
-# Buscamos el literal $1/$2 en el fuente Python (no expansión de shell).
-# shellcheck disable=SC2016
-if grep -qF 'install -m644 "$1" "$2"' "${REPO_DIR}/gui/client.py" \
-  && grep -q 'def udev_install_argv' "${REPO_DIR}/gui/client.py" \
-  && grep -q 'udev_install_argv(src, dst)' "${REPO_DIR}/gui/window.py" \
-  && ! grep -qE 'install -m644 " \+ src|" \+ src \+ "' "${REPO_DIR}/gui/window.py"; then
-  ok "udev pkexec pasa rutas por \$1/\$2"
+# G-02: pkexec solo con rutas absolutas allowlistadas; sin sh -c.
+if grep -q 'def udev_install_argv' "${REPO_DIR}/gui/client.py" \
+  && grep -qF 'UDEV_PACKAGED_SRC = "/usr/lib/udev/rules.d/70-ilutex.rules"' \
+    "${REPO_DIR}/gui/client.py" \
+  && grep -qF 'PKEXEC_BIN = "/usr/bin/pkexec"' "${REPO_DIR}/gui/client.py" \
+  && grep -q 'udev_pkexec_commands' "${REPO_DIR}/gui/window.py" \
+  && ! grep -qF '["pkexec", "sh", "-c"' "${REPO_DIR}/gui/client.py" \
+  && ! grep -qF '~/.local/share/ilutex/70-ilutex.rules' \
+    "${REPO_DIR}/gui/window.py"; then
+  ok "udev pkexec usa argv absoluto allowlistado"
 else
   bad "udev pkexec argv"
 fi
 
-# Comprobación dinámica: la ruta no se interpola en el script de sh -c.
-# El fragmento Python contiene "$1"/"$2" literales a propósito.
-# shellcheck disable=SC2016
+# Comprobación dinámica: argv absoluto + rechazo si el hash no coincide.
 if (
   cd "${REPO_DIR}" && python3 -c '
-from gui.client import udev_install_argv
-src = "/tmp/home with spaces/70-ilutex.rules; rm -rf /"
-dst = "/etc/udev/rules.d/70-ilutex.rules"
-argv = udev_install_argv(src, dst)
-assert argv[:3] == ["pkexec", "sh", "-c"]
-assert "$1" in argv[3] and "$2" in argv[3]
-assert src not in argv[3] and dst not in argv[3]
-assert argv[4:] == ["sh", src, dst]
+from unittest import mock
+from gui.client import (
+    INSTALL_BIN,
+    PKEXEC_BIN,
+    UDEVADM_BIN,
+    UDEV_DEST,
+    UDEV_PACKAGED_SRC,
+    UDEV_PKEXEC_ALLOWED_PATHS,
+    UDEV_RULES_SHA256,
+    udev_install_argv,
+    udev_pkexec_argv_ok,
+    udev_pkexec_commands,
+    udev_rules_digest,
+)
+import os
+packaged = os.path.join("packaging", "udev", "70-ilutex.rules")
+assert udev_rules_digest(packaged) == UDEV_RULES_SHA256
+with mock.patch("gui.client.udev_source_verified", return_value=False):
+    assert udev_install_argv() is None
+    assert udev_pkexec_commands() is None
+with mock.patch("gui.client.udev_source_verified", return_value=True):
+    cmds = udev_pkexec_commands()
+assert cmds is not None and len(cmds) == 3
+assert cmds[0] == [
+    PKEXEC_BIN, INSTALL_BIN, "-m", "0644", UDEV_PACKAGED_SRC, UDEV_DEST
+]
+assert cmds[1] == [PKEXEC_BIN, UDEVADM_BIN, "control", "--reload"]
+assert cmds[2] == [
+    PKEXEC_BIN, UDEVADM_BIN, "trigger", "--subsystem-match=hidraw"
+]
+for cmd in cmds:
+    assert udev_pkexec_argv_ok(cmd)
+    for arg in cmd:
+        if arg.startswith("/"):
+            assert arg in UDEV_PKEXEC_ALLOWED_PATHS
 '
 ); then
-  ok "udev_install_argv no interpola rutas"
+  ok "udev_install_argv absoluto y con hash"
 else
   bad "udev_install_argv"
 fi
@@ -329,7 +392,7 @@ fi
 
 if [ -z "$PY_GI" ]; then
   say "  not_run: sin PyGObject (tray selftest)"
-elif "$PY_GI" -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version('AyatanaAppIndicator3','0.1')" >/dev/null 2>&1; then
+elif "$PY_GI" -c "import gi; gi.require_version('Gtk','3.0'); from gi.repository import Gio, Gtk" >/dev/null 2>&1; then
   tray_ok=0
   # Preferir Xvfb: un DISPLAY heredado sin servidor real provoca segfaults GTK.
   mkdir -p "${REPO_DIR}/.pytest-bin"
@@ -355,7 +418,7 @@ elif "$PY_GI" -c "import gi; gi.require_version('Gtk','3.0'); gi.require_version
     say "  aviso: sin display usable ni Xvfb, tray selftest omitido"
   fi
 else
-  say "  aviso: sin Gtk3/Ayatana, tray selftest omitido"
+  say "  aviso: sin Gtk3/Gio, tray selftest omitido"
 fi
 
 # Instalador con sudo falso: debe salir 1–2 sin "OK:" (falso positivo root).

@@ -21,12 +21,14 @@ jobs:
   quality:
     name: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # tarpaulin (install + instrumentación) alarga el job frente a fmt/clippy.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      # CLI OSS: gitleaks-action exige GITLEAKS_LICENSE en orgs.
+      # Gate de secretos: CLI binario pinado (siempre). gitleaks-action abajo
+      # es adicional y solo corre si hay GITLEAKS_LICENSE (org).
       - name: gitleaks
         run: |
           set -euo pipefail
@@ -40,6 +42,16 @@ jobs:
           tar -xz -C /tmp -f "/tmp/${TGZ}" gitleaks
           /tmp/gitleaks version
           /tmp/gitleaks detect --source . --verbose
+      # H-01: gitleaks/gitleaks-action@v3.0.0 pinado por SHA completo.
+      # Org Soluciones-Alexendros: la action exige GITLEAKS_LICENSE
+      # (https://gitleaks.io). Sin secret se omite para no dejar quality en
+      # rojo permanente; el paso CLI de arriba sigue siendo el gate.
+      - name: gitleaks-action
+        if: ${{ secrets.GITLEAKS_LICENSE != '' }}
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: rustfmt, clippy
@@ -56,16 +68,79 @@ jobs:
           # instalaciones flotantes entre runners.
           cargo install cargo-audit --version 0.23.0 --locked
           cargo audit
+      # H-10: cobertura del crate Rust. Excluye empaquetado vendido y
+      # examples/benches (no son el binario de producción).
+      - name: cargo tarpaulin
+        run: |
+          set -euo pipefail
+          # Pin 0.37.6 (2026-11-18): última estable en crates.io al cerrar H-10.
+          cargo install cargo-tarpaulin --version 0.37.6 --locked
+          cargo tarpaulin --locked --fail-under 70 --timeout 120 \
+            --exclude-files 'packaging/*' \
+            --exclude-files 'examples/*' \
+            --exclude-files 'benches/*' \
+            --exclude-files 'src/main.rs' \
+            --out Stdout
       - name: Lockfile alineado
         run: |
           set -euo pipefail
+          # ADR 2 (enmendado): versión de ilutex alineada; [dependencies]
+          # de producción vacío. Cargo.lock MAY listar el árbol de
+          # criterion (y solo ese) vía [dev-dependencies]; no se exige
+          # un único [[package]].
           VER_TOML=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
-          VER_LOCK=$(awk '/name = "ilutex"/{getline; print; exit}' Cargo.lock | sed -E 's/.*"([^"]+)".*/\1/')
+          VER_LOCK=$(awk '/^name = "ilutex"$/{getline; if ($1=="version" && $2=="="){gsub(/"/,"",$3); print $3; exit}}' Cargo.lock)
+          test -n "$VER_LOCK"
           test "$VER_TOML" = "$VER_LOCK"
-          # ADR 2: el único [[package]] del lockfile debe ser ilutex.
-          mapfile -t PKG_NAMES < <(awk '/^\[\[package\]\]/{getline; if ($1=="name" && $2=="="){gsub(/"/,"",$3); print $3}}' Cargo.lock)
-          test "${#PKG_NAMES[@]}" -eq 1
-          test "${PKG_NAMES[0]}" = "ilutex"
+          python3 - <<'PY'
+          import json, subprocess, sys
+          meta = json.loads(
+              subprocess.check_output(
+                  [
+                      "cargo",
+                      "metadata",
+                      "--format-version",
+                      "1",
+                      "--no-deps",
+                      "--locked",
+                  ],
+                  text=True,
+              )
+          )
+          pkgs = [p for p in meta["packages"] if p["name"] == "ilutex"]
+          if len(pkgs) != 1:
+              print(
+                  f"FAIL: expected one ilutex package in metadata, got {len(pkgs)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          normal = [
+              d["name"]
+              for d in pkgs[0]["dependencies"]
+              if d.get("kind") is None
+          ]
+          if normal:
+              print(
+                  "FAIL: production [dependencies] must stay empty; found: "
+                  + ", ".join(normal),
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          allowed_dev = {"criterion"}
+          dev = [
+              d["name"]
+              for d in pkgs[0]["dependencies"]
+              if d.get("kind") == "dev"
+          ]
+          unexpected = sorted(set(dev) - allowed_dev)
+          if unexpected:
+              print(
+                  "FAIL: only criterion is allowed in [dev-dependencies]; found: "
+                  + ", ".join(unexpected),
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          PY
       - name: GUI py_compile
         run: python3 -m py_compile gui/*.py
       - name: GUI imports (stdlib / gi / cairo)
@@ -73,6 +148,44 @@ jobs:
           set -euo pipefail
           python3 -m unittest scripts/test_check_gui_imports.py -v
           python3 scripts/check-gui-imports.py
+      # H-04 / G-01 / G-05: pins en gui/requirements.txt (hashes reales).
+      # No relaja check-gui-imports: son referencia de bindings de distro.
+      - name: GUI pip-audit
+        run: |
+          set -euo pipefail
+          # Pin 2.10.1 (2026-11-18): última estable vista en PyPI al cerrar H-04.
+          python3 -m pip install --user 'pip-audit==2.10.1'
+          python3 -m pip_audit -r gui/requirements.txt
+      - name: GUI pip-licenses
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user 'pip-licenses==5.5.5'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            build-essential \
+            python3-dev \
+            pkg-config \
+            libcairo2-dev \
+            libgirepository-2.0-dev \
+            libglib2.0-dev \
+            meson \
+            ninja-build \
+            cmake
+          VENV="${RUNNER_TEMP}/ilutex-gui-supply"
+          python3 -m venv "$VENV"
+          "$VENV/bin/pip" install -U pip setuptools wheel
+          "$VENV/bin/pip" install --require-hashes -r gui/requirements.txt
+          "$VENV/bin/pip" install 'pip-licenses==5.5.5'
+          "$VENV/bin/pip-licenses" \
+            --format=csv \
+            --output-file=gui/licenses.csv
+          grep -q 'PyGObject' gui/licenses.csv
+          grep -q 'pycairo' gui/licenses.csv
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gui-licenses
+          path: gui/licenses.csv
+          if-no-files-found: error
       - name: Paquetes npm de plataforma
         run: python3 scripts/check-npm-platforms.py
       - name: Sin residuos del nombre anterior
@@ -102,19 +215,35 @@ jobs:
             gir1.2-gtk-4.0 \
             gir1.2-adw-1 \
             dbus \
-            xvfb
+            dbus-x11 \
+            xvfb \
+            util-linux
           python3 -c "from gi.repository import Gio, GLib; print('GLib', GLib.MAJOR_VERSION, GLib.MINOR_VERSION)"
           python3 -c "import gi; gi.require_version('Gtk', '4.0'); gi.require_version('Adw', '1'); from gi.repository import Gtk, Adw; print('GTK', Gtk.get_major_version(), Gtk.get_minor_version(), 'Adw OK')"
-          # Display virtual: sin xvfb Adw.Application no arranca y la suite
-          # ILUTEX_GUI_TESTS quedaría omitida o en rojo opaco.
-          GDK_BACKEND=x11 xvfb-run -a python3 -m unittest discover -s gui/tests -v
+          # G-04: HOME temporal + netns. `-r` (map-root-user) permite crear
+          # el namespace de red sin CAP_SYS_ADMIN en el userns inicial; el
+          # aislamiento pedido es el de `-n`. dbus-run-session dentro porque
+          # ILUTEX_REQUIRE_DBUS=1. xvfb se conserva para Adw.Application.
+          TMP_HOME=$(mktemp -d)
+          mkdir -p -m 700 "$TMP_HOME/run" "$TMP_HOME/config" "$TMP_HOME/cache" "$TMP_HOME/state"
+          export HOME="$TMP_HOME"
+          export XDG_RUNTIME_DIR="$TMP_HOME/run"
+          export XDG_CONFIG_HOME="$TMP_HOME/config"
+          export XDG_CACHE_HOME="$TMP_HOME/cache"
+          export XDG_STATE_HOME="$TMP_HOME/state"
+          export GDK_BACKEND=x11
+          unshare -rn xvfb-run -a dbus-run-session -- \
+            python3 -m unittest discover -s gui/tests -v
       - name: shellcheck
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck scripts/install.sh scripts/smoke.sh scripts/check-installed.sh \
-            scripts/test-install-root-fail.sh packaging/ilutex-gui \
+          shellcheck scripts/install.sh scripts/install-common.sh \
+            scripts/install-cli.sh scripts/install-gui.sh \
+            scripts/smoke.sh scripts/check-installed.sh \
+            scripts/check-version.sh scripts/test-install-root-fail.sh \
+            packaging/ilutex-gui \
             packaging/debian/postinst packaging/debian/prerm packaging/aur/PKGBUILD
       - name: desktop-file-validate
         run: |

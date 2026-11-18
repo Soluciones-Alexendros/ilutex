@@ -156,6 +156,16 @@ mod tests {
         assert!(parse_color("").is_err());
     }
 
+    #[test]
+    fn color_error_display_lista_predefinidos() {
+        let err = parse_color("fucsia").unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("fucsia"), "{msg}");
+        assert!(msg.contains("red"), "{msg}");
+        assert!(msg.contains("ff6400") || msg.contains("hex"), "{msg}");
+        assert!(std::error::Error::source(&err).is_none());
+    }
+
     /// CLI-04: `from_str_radix` admitiría `+fffff`; el contrato exige 6 hex ASCII.
     #[test]
     fn parse_rechaza_signo_y_no_ascii_hex() {

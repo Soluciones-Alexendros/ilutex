@@ -48,7 +48,7 @@ trabajo pendiente ya tipificado sigue en corto y medio plazo.
 - [x] Probar en hardware AERO X16 cada comando + animaciones a 60 fps
 - [x] Empaquetado en repo: metadata `cargo-deb`, `PKGBUILD` de AUR y release con `.deb` + SBOM + attestation
 - [x] Publicar `.deb` en GitHub Releases (el workflow ya lo construye al empujar el tag)
-- [x] Icono en la barra superior de GNOME (indicador Ayatana): verificado visible junto al resto de iconos con la extensión AppIndicator
+- [x] Icono en la barra superior de GNOME (StatusNotifierItem vía Gio): verificado con host AppIndicator / omarchy.tray
 - [x] v2.0.0 — Cargo por módulos, GUI mesa de luz, packaging, CI/release
 - [x] v2.1.0 — auditoría integral: robustez HID, CLI estructurada sin dependencias, protocolo centralizado, calidad y empaquetado .deb/AUR preparado
 - [x] v2.2.0 — comando restore, lanzador GUI por paquete, GUI acabada y empaquetado al día

@@ -405,6 +405,46 @@ mod tests {
         let err = lamp.attrs().unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
     }
+
+    #[test]
+    fn hidraw_open_ruta_inexistente_explica_udev() {
+        let Err(err) = HidRaw::open(PathBuf::from("/dev/ilutex-no-existe-xyz")) else {
+            panic!("se esperaba error al abrir ruta inexistente");
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("no se pudo abrir"), "{msg}");
+        assert!(msg.contains("ilutex-no-existe-xyz"), "{msg}");
+    }
+
+    #[test]
+    fn find_sin_aero_x16_es_not_found_o_hidraw() {
+        // En CI sin el teclado: NotFound (cubre el barrido de sysfs). Con
+        // hardware real: Ok bajo /dev/hidraw*. Ambos cierran el camino.
+        match Lamp::find() {
+            Err(e) => {
+                assert_eq!(e.kind(), io::ErrorKind::NotFound, "{e}");
+                assert!(e.to_string().contains("LampArray"), "{e}");
+            }
+            Ok(p) => {
+                let s = p.to_string_lossy();
+                assert!(s.contains("hidraw"), "{s}");
+            }
+        }
+    }
+
+    #[test]
+    fn hidraw_get_feature_falla_en_dispositivo_no_hid() {
+        // /dev/zero abre en RW pero no habla HID: cubre el errno de ioctl.
+        let Ok(mut h) = HidRaw::open(PathBuf::from("/dev/zero")) else {
+            return;
+        };
+        let err = h
+            .get_feature(REPORT_ID_ATTRS, ATTRS_REPORT_LEN)
+            .unwrap_err();
+        assert!(!err.to_string().is_empty(), "{err}");
+        let err = h.set_feature(&[REPORT_ID_ATTRS, 0]).unwrap_err();
+        assert!(!err.to_string().is_empty(), "{err}");
+    }
 }
 
 #[cfg(test)]

@@ -38,7 +38,7 @@ Una sesión = una unidad cohesiva. PR pequeño. Mensajes al humano y commits en 
 
 **Requiere confirmación**
 
-- Dependencia Cargo nueva (hoy el crate tiene **cero** deps; ADR 2)
+- Dependencia Cargo de producción (ADR 2: `[dependencies]` vacío; `criterion` solo en `[dev-dependencies]`)
 - Cambiar informes HID, ioctl o `protocol.rs` → ADR previo
 - Publicar tags o el AUR (el humano lanza el tag `vX.Y.Z`)
 - Exponer el CLI como cdylib/FFI (ADR 9, aplazada)
@@ -72,7 +72,7 @@ CI principal (`.github/workflows/ci.yml`): jobs `quality`, `test`, `build`, `smo
 src/            CLI Rust (protocol, lamp, color, state, animation, cli)
 gui/            Mesa de luz GTK4 (subproceso al CLI)
 packaging/      udev, systemd, desktop, debian, AUR
-scripts/        install.sh, smoke.sh
+scripts/        install.sh (+ install-cli/gui), smoke.sh
 docs/           architecture/, guides/, runbooks/
 po/             gettext (es)
 ```

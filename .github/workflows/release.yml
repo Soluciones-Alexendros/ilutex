@@ -127,6 +127,14 @@ jobs:
             exit 1
           fi
           gpg --verify dist/SHA256SUMS.asc dist/SHA256SUMS
+      - name: Firmar SHA256SUMS (cosign keyless)
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - name: Cosign sign-blob de SHA256SUMS
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --bundle dist/SHA256SUMS.sigstore.json \
+            dist/SHA256SUMS
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
@@ -143,3 +151,4 @@ jobs:
             dist/sbom.json
             dist/SHA256SUMS
             dist/SHA256SUMS.asc
+            dist/SHA256SUMS.sigstore.json

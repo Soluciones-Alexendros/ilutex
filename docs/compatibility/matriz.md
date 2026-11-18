@@ -12,7 +12,7 @@ sin certificación), **no soportado** (excluido del alcance anunciado).
 ## Ejes distintos
 
 1. Ejecutable CLI y dependencias del sistema.
-2. GUI (GTK4 / libadwaita ≥ 1.5).
+2. GUI (GTK ≥ 4.14 / libadwaita ≥ 1.5).
 3. Bandeja, D-Bus, autostart y autorización de sesión.
 4. Protocolo HID con el teclado AERO X16 admitido.
 
@@ -20,21 +20,23 @@ sin certificación), **no soportado** (excluido del alcance anunciado).
 
 | Familia | Versión | CLI | GUI | Canal | Estado |
 |---|---|---|---|---|---|
-| Debian | 12 | Sí | No (libadwaita 1.2 &lt; 1.5) | `.deb` / script | CLI **candidato**; GUI **no soportada** (exclusión ratificada; no hay vía GTK3) |
-| Debian | 13 | Sí | Si Adw ≥ 1.5 | `.deb` | **candidato** |
-| Ubuntu | 22.04 | Sí | No anunciada | `.deb` / script | CLI **candidato**; GUI **no anunciada** hasta medir libadwaita ≥ 1.5 en esa versión |
-| Ubuntu | 24.04 | Sí | Si Adw ≥ 1.5 | `.deb` | **candidato** |
-| Ubuntu | 26.04 | Sí | Si Adw ≥ 1.5 | `.deb` | **candidato** |
-| Fedora | Versión registrada en la release | Sí | Si Adw ≥ 1.5 | script / RPM futuro | **candidato**, empaquetado RPM **no verificado** |
-| Arch Linux | Snapshot de repos registrado | Sí | Si Adw ≥ 1.5 | AUR / nativo | **candidato**; AUR **no anunciado** hasta checksum y chroot |
+| Debian | 12 | Sí | No (GTK &lt; 4.14; Adw 1.2 &lt; 1.5) | `.deb` / script | CLI **candidato**; GUI **no soportada** (exclusión ratificada; no hay vía GTK3) |
+| Debian | 13 | Sí | Si GTK ≥ 4.14 y Adw ≥ 1.5 | `.deb` | **candidato** |
+| Ubuntu | 22.04 | Sí | No (GTK &lt; 4.14) | `.deb` / script | CLI **candidato**; GUI **no soportada** |
+| Ubuntu | 24.04 | Sí | Si GTK ≥ 4.14 y Adw ≥ 1.5 | `.deb` | **candidato** |
+| Ubuntu | 26.04 | Sí | Si GTK ≥ 4.14 y Adw ≥ 1.5 | `.deb` | **candidato** |
+| Fedora | Versión registrada en la release | Sí | Si GTK ≥ 4.14 y Adw ≥ 1.5 | script / RPM futuro | **candidato**, empaquetado RPM **no verificado** |
+| Arch Linux | Snapshot de repos registrado | Sí | Si GTK ≥ 4.14 y Adw ≥ 1.5 | AUR / nativo | **candidato**; AUR **no anunciado** hasta checksum y chroot |
 | openSUSE | — | — | — | — | **fuera del alcance** anunciado en esta revisión |
 
 ## Bibliotecas gráficas
 
-Mínimo de la mesa de luz: **GTK 4** y **libadwaita 1.5** (`Adw.ToolbarView`,
-`Adw.PreferencesDialog`, `Adw.AlertDialog`). Sin capa paralela de widgets
-para Adw 1.2 en este cierre. La bandeja (Ayatana/GTK3) es dependencia
-separada: sin host de bandeja la ventana sigue siendo usable.
+Mínimo de la mesa de luz: **GTK ≥ 4.14** y **libadwaita ≥ 1.5**
+(`Adw.ToolbarView`, `Adw.PreferencesDialog`, `Adw.AlertDialog`). El
+preflight (`gui/preflight.py`) rechaza versiones menores con mensaje
+explícito. Sin capa paralela de widgets para Adw 1.2 en este cierre. La
+bandeja (SNI vía Gio + GTK3 para el menú) es dependencia separada y
+opcional: sin host StatusNotifier la ventana sigue siendo usable.
 
 ## Arquitecturas
 
@@ -55,9 +57,9 @@ Waybar automáticamente. Esta estabilización no lo pasa a soportado.
 ## Alcance ratificado en la estabilización
 
 - Debian 12: la mesa de luz queda fuera de soporte. El preflight que
-  rechaza libadwaita 1.2 no es una compatibilidad pendiente de recuperar
-  en este cierre.
-- Ubuntu 22.04: el CLI es candidato. La GUI no se anuncia.
+  rechaza GTK &lt; 4.14 y libadwaita 1.2 no es una compatibilidad pendiente
+  de recuperar en este cierre.
+- Ubuntu 22.04: el CLI es candidato. La GUI no está soportada (GTK &lt; 4.14).
 - Varios usuarios: la exclusión mutua del candado en `/run/ilutex`
   (ADR 13) es el contrato. No se anuncia una política distinta de «sesión
   gráfica activa» mientras el dispositivo siga gobernado por `uaccess`.

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import shutil
@@ -18,6 +19,26 @@ except ImportError:  # ejecución directa: gui/ en sys.path
 _load, log_exc, _gettext_func = api(__file__)
 _ = _gettext_func()
 
+# SHA-256 de packaging/udev/70-ilutex.rules (fuente de verdad del repo).
+UDEV_RULES_SHA256 = (
+    "58ab5db677ec3c199641db578942b802bd2ad8adc20625db18f08f9e6d8d983b"
+)
+UDEV_PACKAGED_SRC = "/usr/lib/udev/rules.d/70-ilutex.rules"
+UDEV_DEST = "/etc/udev/rules.d/70-ilutex.rules"
+PKEXEC_BIN = "/usr/bin/pkexec"
+INSTALL_BIN = "/usr/bin/install"
+UDEVADM_BIN = "/usr/bin/udevadm"
+# Rutas absolutas permitidas en cualquier argv de pkexec que construya gui/.
+UDEV_PKEXEC_ALLOWED_PATHS = frozenset(
+    {
+        PKEXEC_BIN,
+        INSTALL_BIN,
+        UDEVADM_BIN,
+        UDEV_PACKAGED_SRC,
+        UDEV_DEST,
+    }
+)
+
 
 def find_binary():
     for cand in (
@@ -33,14 +54,61 @@ def find_binary():
     return "ilutex"
 
 
-def udev_install_argv(src: str, dst: str) -> list[str]:
-    """Construye el argv de pkexec sin interpolar rutas en el script."""
-    script = (
-        'install -m644 "$1" "$2" && '
-        "udevadm control --reload && "
-        "udevadm trigger --subsystem-match=hidraw"
-    )
-    return ["pkexec", "sh", "-c", script, "sh", src, dst]
+def udev_rules_digest(path: str) -> str | None:
+    """SHA-256 hex del fichero, o None si no se puede leer."""
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def udev_source_verified(path: str = UDEV_PACKAGED_SRC) -> bool:
+    """True solo si el origen empaquetado existe y coincide el hash canónico."""
+    digest = udev_rules_digest(path)
+    return digest is not None and digest == UDEV_RULES_SHA256
+
+
+def udev_install_argv() -> list[str] | None:
+    """Argv absoluto de ``pkexec install``; None si el origen no verifica."""
+    if not udev_source_verified():
+        return None
+    return [
+        PKEXEC_BIN,
+        INSTALL_BIN,
+        "-m",
+        "0644",
+        UDEV_PACKAGED_SRC,
+        UDEV_DEST,
+    ]
+
+
+def udev_reload_argv() -> list[str]:
+    return [PKEXEC_BIN, UDEVADM_BIN, "control", "--reload"]
+
+
+def udev_trigger_argv() -> list[str]:
+    return [PKEXEC_BIN, UDEVADM_BIN, "trigger", "--subsystem-match=hidraw"]
+
+
+def udev_pkexec_commands() -> list[list[str]] | None:
+    """Tres llamadas pkexec (install, reload, trigger), o None si no hay origen."""
+    install = udev_install_argv()
+    if install is None:
+        return None
+    return [install, udev_reload_argv(), udev_trigger_argv()]
+
+
+def udev_pkexec_argv_ok(argv: list[str]) -> bool:
+    """True si cada argumento con forma de ruta es absoluto y está en allowlist."""
+    if not argv or argv[0] != PKEXEC_BIN:
+        return False
+    for arg in argv:
+        if arg.startswith("/") and arg not in UDEV_PKEXEC_ALLOWED_PATHS:
+            return False
+        if arg in ("sh", "-c") or arg.endswith("/sh"):
+            return False
+    return True
 
 
 def _absolute_or_none(path: str | None) -> str | None:

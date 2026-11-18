@@ -31,7 +31,8 @@ ilutex-gui --tray
 ## Bandeja: usa la que ya trae tu escritorio
 
 No instalamos ni configuramos una segunda barra: el icono LED es un
-`StatusNotifierItem` (Ayatana) y lo pinta el host de bandeja que ya tengas.
+`StatusNotifierItem` (Gio/D-Bus; sin Ayatana) y lo pinta el host de bandeja
+que ya tengas.
 
 ### Omarchy (Quickshell)
 
