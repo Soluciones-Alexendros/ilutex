@@ -116,7 +116,6 @@ fetch_and_verify_release() {
   # Quitar el trap de borrado: el directorio vive hasta el final del proceso
   # vía ILUTEX_RELEASE_DIR; se limpia al salir del orquestador.
   trap - EXIT
-  ILUTEX_RELEASE_WORK="$work"
   export ILUTEX_RELEASE_DIR="$extracted"
   # shellcheck disable=SC2064
   trap "rm -rf '$work'" EXIT

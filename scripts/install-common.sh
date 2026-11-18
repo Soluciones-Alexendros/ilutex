@@ -60,10 +60,10 @@ install_if_changed() {
 }
 
 # Resuelve el árbol fuente: tarball de --release o el repo que contiene scripts/.
-# Variables de salida: ILUTEX_TREE, ILUTEX_BIN_SRC, stage_root.
+# Variables de salida (las leen install-cli.sh e install-gui.sh):
+# ILUTEX_TREE, ILUTEX_BIN_SRC, stage_root.
 resolve_install_paths() {
   local scripts_dir="$1"
-  ILUTEX_SCRIPTS_DIR="$scripts_dir"
   if [ -n "${ILUTEX_RELEASE_DIR:-}" ]; then
     ILUTEX_TREE="$(cd "${ILUTEX_RELEASE_DIR}" && pwd)"
     ILUTEX_BIN_SRC="${ILUTEX_TREE}/ilutex"
@@ -79,4 +79,6 @@ resolve_install_paths() {
       *) echo "    aviso: ILUTEX_ROOT debe ser absoluta; se ignora" >&2 ;;
     esac
   fi
+  # Las leen install-cli.sh e install-gui.sh; export las marca como contrato.
+  export ILUTEX_TREE ILUTEX_BIN_SRC stage_root
 }

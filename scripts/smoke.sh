@@ -106,6 +106,8 @@ else
 fi
 
 # udev local: origen privilegiado /usr/lib; no copiar a ~/.local para pkexec.
+# La tilde es el literal a buscar, no una ruta del shell.
+# shellcheck disable=SC2088
 if grep -q '/usr/lib/udev/rules.d/70-ilutex.rules' "${REPO_DIR}/scripts/install-cli.sh" \
   && ! grep -qF '~/.local/share/ilutex/70-ilutex.rules' \
     "${REPO_DIR}/scripts/install-cli.sh" "${REPO_DIR}/scripts/install-gui.sh" \
@@ -197,6 +199,7 @@ fi
 rm -rf "$stage_dir"
 
 # G-02: pkexec solo con rutas absolutas allowlistadas; sin sh -c.
+# shellcheck disable=SC2088
 if grep -q 'def udev_install_argv' "${REPO_DIR}/gui/client.py" \
   && grep -qF 'UDEV_PACKAGED_SRC = "/usr/lib/udev/rules.d/70-ilutex.rules"' \
     "${REPO_DIR}/gui/client.py" \
