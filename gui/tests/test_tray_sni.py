@@ -98,10 +98,18 @@ class TestTrayUnavailableSinHost(unittest.TestCase):
             env["DBUS_SESSION_BUS_ADDRESS"] = address
             env["GDK_BACKEND"] = "x11"
             env.pop("WAYLAND_DISPLAY", None)
+            # TrayUnavailable se lanza en el import si faltan Gtk3/cairo: hay
+            # que atraparla ahí (el fromlist no llega a bindear el nombre).
             snippet = (
                 "import os, sys\n"
                 "sys.path.insert(0, os.environ['ILUTEX_ROOT'])\n"
-                "from gui.tray import TrayIndicator, TrayUnavailable\n"
+                "try:\n"
+                "    from gui.tray import TrayIndicator, TrayUnavailable\n"
+                "except Exception as e:\n"
+                "    if type(e).__name__ == 'TrayUnavailable':\n"
+                "        print('unavailable')\n"
+                "        raise SystemExit(0)\n"
+                "    raise\n"
                 "class C:\n"
                 "    def get_state_file(self): return ('ffffff', 100)\n"
                 "    def animation_running(self): return None\n"
