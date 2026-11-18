@@ -224,8 +224,22 @@ fn matches_supported_profile(hidraw_name: &str) -> bool {
 impl Lamp<HidRaw> {
     /// Busca el hidraw con firma `LampArray` y VID/PID admitidos.
     pub fn find() -> io::Result<PathBuf> {
+        let not_found = || {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                "no se encontró el dispositivo LampArray admitido (VID 0414 / PID 8104); \
+                 ¿está cargada la regla udev? mira con 'ilutex info'",
+            )
+        };
         let mut found: Vec<PathBuf> = Vec::new();
-        for e in fs::read_dir("/sys/class/hidraw")? {
+        // Sin /sys/class/hidraw (p. ej. contenedores sin sysfs HID) → mismo
+        // NotFound con LampArray que el barrido vacío; no filtrar el errno crudo.
+        let entries = match fs::read_dir("/sys/class/hidraw") {
+            Ok(it) => it,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Err(not_found()),
+            Err(e) => return Err(e),
+        };
+        for e in entries {
             let e = e?;
             let name = e.file_name().to_string_lossy().into_owned();
             if !name.starts_with("hidraw") {
@@ -243,13 +257,7 @@ impl Lamp<HidRaw> {
             }
         }
         found.sort();
-        found.into_iter().next().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                "no se encontró el dispositivo LampArray admitido (VID 0414 / PID 8104); \
-                 ¿está cargada la regla udev? mira con 'ilutex info'",
-            )
-        })
+        found.into_iter().next().ok_or_else(not_found)
     }
 
     /// Localiza, abre y consulta los atributos del dispositivo.
