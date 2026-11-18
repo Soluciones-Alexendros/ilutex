@@ -503,7 +503,12 @@ mod tests {
             Some(&[0x00, 0x01]),
         );
         write_hidraw_node(&sys, "hidraw1", Some("0003:bad"), Some(&[0x05, 0x59]));
-        write_hidraw_node(&sys, "hidraw2", None, Some(crate::protocol::DEVICE_SIGNATURE));
+        write_hidraw_node(
+            &sys,
+            "hidraw2",
+            None,
+            Some(crate::protocol::DEVICE_SIGNATURE),
+        );
         let err = find_in(&sys).unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound, "{err}");
         assert!(err.to_string().contains("LampArray"), "{err}");
@@ -531,25 +536,10 @@ mod tests {
         let mut desc = vec![0x00, 0xff];
         desc.extend_from_slice(crate::protocol::DEVICE_SIGNATURE);
         desc.push(0x11);
-        write_hidraw_node(
-            &sys,
-            "hidraw9",
-            Some("0003:00000414:00008104"),
-            Some(&desc),
-        );
-        write_hidraw_node(
-            &sys,
-            "hidraw8",
-            Some("0003:00000414:00008104"),
-            Some(&desc),
-        );
+        write_hidraw_node(&sys, "hidraw9", Some("0003:00000414:00008104"), Some(&desc));
+        write_hidraw_node(&sys, "hidraw8", Some("0003:00000414:00008104"), Some(&desc));
         // Líneas uevent basura + HID_ID válido al final (menor nombre gana).
-        write_hidraw_node(
-            &sys,
-            "hidraw7",
-            Some("0003:00000414:00008104"),
-            Some(&desc),
-        );
+        write_hidraw_node(&sys, "hidraw7", Some("0003:00000414:00008104"), Some(&desc));
         fs::write(
             sys.join("hidraw7/device/uevent"),
             "FOO=1\nHID_ID=0003:00000414:00008104\n",
