@@ -19,6 +19,10 @@
   },
   "packageRules": [
     {
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
       "matchManagers": ["cargo"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Rust (non-major)",

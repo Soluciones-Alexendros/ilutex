@@ -17,14 +17,14 @@ jobs:
   build-x64:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
       - run: cargo build --release
       - run: |
           mkdir -p npm/platforms/linux-x64/bin
           cp target/release/ilutex npm/platforms/linux-x64/bin/ilutex
           chmod +x npm/platforms/linux-x64/bin/ilutex
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ilutex-linux-x64
           path: npm/platforms/linux-x64/bin/ilutex
@@ -32,14 +32,14 @@ jobs:
   build-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
       - run: cargo build --release
       - run: |
           mkdir -p npm/platforms/linux-arm64/bin
           cp target/release/ilutex npm/platforms/linux-arm64/bin/ilutex
           chmod +x npm/platforms/linux-arm64/bin/ilutex
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ilutex-linux-arm64
           path: npm/platforms/linux-arm64/bin/ilutex
@@ -48,12 +48,12 @@ jobs:
     needs: [build-x64, build-arm64]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ilutex-linux-x64
           path: npm/platforms/linux-x64/bin
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ilutex-linux-arm64
           path: npm/platforms/linux-arm64/bin
@@ -73,7 +73,7 @@ jobs:
               fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
             }
           '
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org

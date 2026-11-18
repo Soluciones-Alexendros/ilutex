@@ -7,6 +7,14 @@ ExecStart=/usr/bin/ilutex animation %i
 ExecStopPost=/usr/bin/ilutex stop
 Restart=no
 Nice=10
+# Endurecimiento: sin PrivateDevices (HID /dev/hidraw*) ni ProtectHome (XDG_STATE_HOME).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectClock=yes
+LockPersonality=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
 
 [Install]
 WantedBy=default.target

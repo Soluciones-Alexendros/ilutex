@@ -13,13 +13,32 @@ git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-`.github/workflows/release.yml` publica tarball, `.deb`, SBOM CycloneDX, `SHA256SUMS` y attestation.
+`.github/workflows/release.yml` publica tarball, `.deb`, SBOM CycloneDX,
+`SHA256SUMS`, la firma `SHA256SUMS.asc` y attestation de procedencia.
+Exporta `SOURCE_DATE_EPOCH` con la fecha del commit del tag (no afirma
+builds bit a bit).
+
+**Antes del primer tag tras merge:** secret `ILUTEX_RELEASE_GPG_KEY` (clave
+privada **sin passphrase**; el runner no soporta PIN) **y** commit de
+`packaging/keys/ilutex-release.asc`. Sin el secret el job falla; sin la
+pública el consumidor no verifica. Detalle:
+[`packaging/keys/README.md`](../../packaging/keys/README.md).
+
+Verificación del consumidor:
+
+```bash
+gpg --import packaging/keys/ilutex-release.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+gh attestation verify ilutex-vX.Y.Z-linux-x86_64.tar.gz --repo Soluciones-Alexendros/ilutex
+```
 
 ## Fallos típicos
 
 | Síntoma | Qué mirar |
 | --- | --- |
 | Tag no coincide con Cargo.toml | El job de release falla a propósito. Alinea versión y retaguea. |
+| Falta secret `ILUTEX_RELEASE_GPG_KEY` | El job de firma sale con error explícito. Crear el secret (ASCII-armor de la privada sin passphrase) antes de retaguear. |
+| Clave con passphrase / pide PIN | No soportado en CI (`--pinentry-mode loopback` sin passphrase). Regenerar un par dedicado sin passphrase y actualizar el secret. |
 | Falta `.mo` en el `.deb` | El workflow corre `msgfmt` antes de `cargo deb` para cada `po/*.po`. En local: `make i18n` (regenera el `.pot` y compila `gui/locale/<idioma>/LC_MESSAGES/ilutex.mo`). |
 | `.pot` desincronizado del código | `make check-i18n` compara `.pot` y `.po` (msgids, vacíos, duplicados). `make i18n` regenera con `xgettext` (`--keyword=_ --keyword=N_`). |
 | AUR sin `sha256sums` | `updpkgsums` y `makepkg --printsrcinfo` antes de publicar (ver `packaging/aur/README.md`). |

@@ -31,7 +31,7 @@ jobs:
         run: |
           echo "::notice::Falta el secret RELEASE_PAT. Crea un PAT (scopes repo y workflow) y guárdalo como secreto de repositorio RELEASE_PAT; sin él no hay PR de release ni tag. El job termina en verde."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: ${{ env.RELEASE_PAT != '' }}
         with:
           fetch-depth: 0
@@ -148,7 +148,7 @@ jobs:
         run: |
           echo "::notice::Falta el secret RELEASE_PAT. Crea un PAT (scopes repo y workflow) y guárdalo como secreto de repositorio RELEASE_PAT; sin él no se crea el tag ni se disparan Release/NPM. El job termina en verde."
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: ${{ env.RELEASE_PAT != '' }}
         with:
           fetch-depth: 0

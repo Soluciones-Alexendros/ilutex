@@ -1,0 +1,21 @@
+# Hooks locales (sin repos externos). Clippy sigue en el job quality de CI.
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt --check
+        entry: cargo fmt --check
+        language: system
+        pass_filenames: false
+        types: [rust]
+      - id: shellcheck
+        name: shellcheck scripts/ y packaging/
+        language: system
+        pass_filenames: false
+        entry: >-
+          bash -c 'shellcheck
+          scripts/*.sh
+          packaging/ilutex-gui
+          packaging/debian/postinst
+          packaging/debian/prerm
+          packaging/aur/PKGBUILD'
