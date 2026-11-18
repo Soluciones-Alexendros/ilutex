@@ -7,10 +7,8 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 real_home="${HOME}"
 fake_bin="$(mktemp -d)"
 fake_home="$(mktemp -d)"
-cleanup() {
-  rm -rf "$fake_bin" "$fake_home"
-}
-trap cleanup EXIT
+# Cuerpo inline: shellcheck SC2329 marca cleanup() vía trap como «nunca invocada».
+trap 'rm -rf "$fake_bin" "$fake_home"' EXIT
 
 cat > "${fake_bin}/sudo" <<'EOF'
 #!/bin/sh
