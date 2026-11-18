@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     # tarpaulin (install + instrumentación) alarga el job frente a fmt/clippy.
     timeout-minutes: 35
+    # `secrets` no es válido en `if:` del workflow; se expone vía env.
+    env:
+      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -47,11 +50,11 @@ jobs:
       # (https://gitleaks.io). Sin secret se omite para no dejar quality en
       # rojo permanente; el paso CLI de arriba sigue siendo el gate.
       - name: gitleaks-action
-        if: ${{ secrets.GITLEAKS_LICENSE != '' }}
+        if: ${{ env.GITLEAKS_LICENSE != '' }}
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_LICENSE: ${{ env.GITLEAKS_LICENSE }}
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: rustfmt, clippy
