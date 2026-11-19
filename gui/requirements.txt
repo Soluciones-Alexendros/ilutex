@@ -1,0 +1,13 @@
+# Pins de referencia para los bindings de distro de la mesa de luz
+# (python3-gi / python3-cairo en el .deb; gi y cairo en check-gui-imports).
+# No autorizan `pip install` dentro de gui/; el checker de imports no se relaja.
+# Hashes: `pip download --no-deps` + `pip hash` (2026-11-18), cruzados con
+# digests SHA-256 de PyPI para los sdists.
+#
+# PyGObject==3.58.1  (sdist pygobject-3.58.1.tar.gz)
+# pycairo==1.29.2    (sdist pycairo-1.29.2.tar.gz)
+
+PyGObject==3.58.1 \
+    --hash=sha256:4c80598ade17fbaa7798e01a25d0bf29ce109740786026a074c5c62bb3e79d23
+pycairo==1.29.2 \
+    --hash=sha256:3e69fff74fe64f5ba2dfa31f67c6bdf26413342574047437d2ac520d35e9a489

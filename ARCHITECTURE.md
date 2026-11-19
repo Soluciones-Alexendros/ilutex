@@ -117,12 +117,14 @@ y cacheado). El estado se sigue con `Gio.FileMonitor` sobre el state file
 corren en hilos worker con `GLib.idle_add`. Habla con el hardware solo vía
 subproceso al CLI.
 
-La bandeja (`--tray`) es un proceso aparte (GTK3 + AyatanaAppIndicator3, por
-incompatible con GTK4): menú con slider de brillo, predefinidos de color,
-submenú de animaciones con modo activo marcado, Restaurar/Preferencias/Acerca
-de/Salir; sincroniza su estado leyendo state/pidfile cada 2 s y lanza la
-ventana como subproceso trackeado que mata y reaped al salir. El cierre es
-limpio (sin `os._exit`), así `client.stop()` siempre se ejecuta.
+La bandeja (`--tray`) es un proceso aparte (GTK3 + StatusNotifierItem vía
+`gi.repository.Gio`, menú Gtk3; Ayatana es opcional y no se usa): menú con
+slider de brillo, predefinidos de color, submenú de animaciones con modo
+activo marcado, Restaurar/Preferencias/Acerca de/Salir; sincroniza su estado
+leyendo state/pidfile cada 2 s y lanza la ventana como subproceso trackeado
+que mata y reaped al salir. Sin bus de sesión o sin host SNI se lanza
+`TrayUnavailable` y `ilutex-gui --tray` abre la ventana. El cierre es limpio
+(sin `os._exit`), así `client.stop()` siempre se ejecuta.
 
 La GUI tiene suite de tests unitarios en `gui/tests/` (cliente con binario
 fake, colores, tema, i18n, helpers de bandeja, control D-Bus) y

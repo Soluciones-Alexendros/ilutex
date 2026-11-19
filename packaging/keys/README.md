@@ -1,8 +1,10 @@
 # Claves de firma de release
 
 El workflow [`.github/workflows/release.yml`](../../.github/workflows/release.yml)
-firma `dist/SHA256SUMS` con GPG y publica `SHA256SUMS.asc` junto al tarball,
-el `.deb` y el SBOM.
+firma `dist/SHA256SUMS` con GPG (`SHA256SUMS.asc`) y, además, con cosign
+keyless (`SHA256SUMS.sigstore.json`). La política completa (algoritmo,
+caducidad 2 años, rotación anual con 30 días de solape, keys.openpgp.org,
+revocación) está en [`SECURITY.md`](../../SECURITY.md).
 
 ## Checklist antes del primer tag tras merge
 
@@ -16,24 +18,26 @@ verificar.
 
 ## Qué debe hacer el operador
 
-1. Crear un par GPG **dedicado** a releases de ilutex (no reutilizar la clave
-   personal de commits), **sin passphrase** (el runner firma con
-   `--pinentry-mode loopback` y no hay secret de passphrase: si la clave
-   pide PIN, el job falla).
+1. Crear un par GPG **dedicado** a releases de ilutex (ed25519 o RSA-4096,
+   caducidad 2 años; no reutilizar la clave personal de commits), **sin
+   passphrase** (el runner firma con `--pinentry-mode loopback` y no hay
+   secret de passphrase: si la clave pide PIN, el job falla).
 2. Guardar la clave **privada** como secret de repositorio
    `ILUTEX_RELEASE_GPG_KEY` (ASCII-armor completo exportado con
    `gpg --export-secret-keys --armor <fpr>`). Sin ese secret el job de
    release falla a propósito: no se publica un `SHA256SUMS` sin firma.
-3. Colocar aquí la clave **pública** como `ilutex-release.asc`:
+3. Colocar aquí la clave **pública** como `ilutex-release.asc` y publicarla
+   también en [keys.openpgp.org](https://keys.openpgp.org):
 
    ```bash
    gpg --export --armor <fpr> > packaging/keys/ilutex-release.asc
    ```
 
-4. Rotación: anual o ante sospecha de compromiso. Conservar la clave retirada
-   en este directorio con la fecha en el nombre (p. ej.
-   `ilutex-release-YYYY-MM-DD-retired.asc`). La release siguiente se firma solo
-   con la clave nueva.
+4. Rotación: anual con 30 días de solape, o ante sospecha de compromiso.
+   Conservar la clave retirada en este directorio con la fecha en el nombre
+   (p. ej. `ilutex-release-YYYY-MM-DD-retired.asc`) y publicar revocación en
+   keys.openpgp.org. Tras el solape, la release siguiente se firma solo con
+   la clave nueva.
 
 ## Qué no va en el repo
 

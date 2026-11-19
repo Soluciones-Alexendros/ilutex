@@ -64,11 +64,13 @@ chroots, contenedores sin systemd— sin compilar ni tocar la sesión:
 
 ```bash
 ILUTEX_ROOT=/ruta/al/root ./scripts/install.sh
+# equivalente: ILUTEX_ROOT=/ruta/al/root ./scripts/install-cli.sh
 ```
 
-Deja, bajo `$ILUTEX_ROOT`: `etc/udev/rules.d/70-ilutex.rules`,
-`usr/lib/sysusers.d/ilutex.conf`, `usr/lib/tmpfiles.d/ilutex.conf` y el candado
-`run/ilutex/writer.lock` (modos `0770`/`0660`).
+Deja, bajo `$ILUTEX_ROOT`: `usr/lib/udev/rules.d/70-ilutex.rules` (origen
+empaquetado que usa pkexec), `etc/udev/rules.d/70-ilutex.rules` (regla
+activa), `usr/lib/sysusers.d/ilutex.conf`, `usr/lib/tmpfiles.d/ilutex.conf` y
+el candado `run/ilutex/writer.lock` (modos `0770`/`0660`).
 
 - Sin `ILUTEX_ROOT` (o relativa), el instalador funciona en vivo como siempre.
 - El modo offline **no usa sudo** ni `udevadm` y no depende de systemd: el
@@ -76,3 +78,29 @@ Deja, bajo `$ILUTEX_ROOT`: `etc/udev/rules.d/70-ilutex.rules`,
   instale ese root como root (p. ej. el empaquetador).
 - `systemd-sysusers --root` se usa si está disponible para dejar el grupo
   `ilutex` en `$ILUTEX_ROOT/etc/group` (best-effort).
+- La GUI (`install-gui.sh`) no participa en `ILUTEX_ROOT`.
+
+## Instaladores separados y `--release`
+
+| Script | Privilegio | Qué instala |
+| --- | --- | --- |
+| `scripts/install-cli.sh` | sudo (vivo) | binario en `~/.local/bin`, udev en `/usr/lib` + `/etc`, sysusers, tmpfiles |
+| `scripts/install-gui.sh` | usuario | GUI, desktop, icono, unidades systemd de usuario |
+| `scripts/install.sh` | orquesta ambos | camino documentado; acepta `--release` |
+
+```bash
+./scripts/install.sh --release v3.1.1
+```
+
+Descarga `ilutex-v3.1.1-linux-x86_64.tar.gz` y `SHA256SUMS`, ejecuta
+`sha256sum -c SHA256SUMS --ignore-missing` y, si `gh auth status` es OK,
+`gh attestation verify … --repo Soluciones-Alexendros/ilutex`. Sin
+`--release` no hay red: se compila el árbol local.
+
+**udev y pkexec.** El origen privilegiado es siempre
+`/usr/lib/udev/rules.d/70-ilutex.rules` (mismo path que el `.deb`). La
+instalación local con sudo también lo materializa ahí además de `/etc`.
+No se copia la regla a `~/.local` para elevar privilegios. La GUI
+(`gui/client.py`) llama a `pkexec` con argv absolutos allowlistados (sin
+`sh -c`) y solo si el SHA-256 del origen coincide con
+`UDEV_RULES_SHA256` (= `packaging/udev/70-ilutex.rules`).

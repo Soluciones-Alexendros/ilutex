@@ -189,6 +189,51 @@ mod tests {
         );
     }
 
+    #[test]
+    fn state_base_usa_home_si_xdg_state_ausente() {
+        let mut env = crate::EnvGuard::lock();
+        env.remove("XDG_STATE_HOME");
+        env.set("HOME", "/tmp/ilutex-home-xdg-test");
+        let base = state_base().unwrap();
+        assert_eq!(
+            base,
+            PathBuf::from("/tmp/ilutex-home-xdg-test/.local/state")
+        );
+    }
+
+    #[test]
+    fn state_base_falla_sin_home_absoluto() {
+        let mut env = crate::EnvGuard::lock();
+        env.remove("XDG_STATE_HOME");
+        env.set("HOME", "relativo");
+        let err = state_base().unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::NotFound, "{err}");
+    }
+
+    #[test]
+    fn ensure_private_dir_rechaza_fichero_regular() {
+        let dir = scratch("nodir");
+        let file = dir.join("archivo");
+        fs::write(&file, b"x").unwrap();
+        let err = ensure_private_dir(&file).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::AlreadyExists, "{err}");
+        assert!(err.to_string().contains("no es un directorio"), "{err}");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn open_lock_file_rechaza_directorio_como_candado() {
+        let dir = scratch("lockdir");
+        let privado = dir.join("privado");
+        ensure_private_dir(&privado).unwrap();
+        let nested = privado.join("subdir");
+        ensure_private_dir(&nested).unwrap();
+        let err = open_lock_file(&nested).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::AlreadyExists, "{err}");
+        assert!(err.to_string().contains("no es un fichero"), "{err}");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
     fn scratch(tag: &str) -> PathBuf {
         let dir = PathBuf::from(format!("/tmp/ilutex-xdg-{}-{tag}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);

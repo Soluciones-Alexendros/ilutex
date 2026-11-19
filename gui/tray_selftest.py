@@ -82,27 +82,27 @@ def ensure_display():
 
 _XVFB = ensure_display()
 
-SNIPPET = (
+# G-03: sin Ayatana el módulo debe importar (SNI vía Gio). TrayUnavailable
+# queda para ausencia de bus/host, no para falta de AyatanaAppIndicator3.
+SNIPPET_SIN_AYATANA = (
     "import builtins, sys\n"
     "_real = builtins.__import__\n"
-    "def _hook(name, g=None, l=None, f=(), level=0):\n"
+    "def _hook(name, globals=None, locals=None, fromlist=(), level=0):\n"
     "    if 'AyatanaAppIndicator3' in str(name):\n"
     "        raise ImportError('simulated no ayatana')\n"
     "    try:\n"
-    "        fl = list(f or ())\n"
+    "        fl = list(fromlist or ())\n"
     "    except Exception:\n"
     "        fl = []\n"
     "    if any('AyatanaAppIndicator3' in str(x) for x in fl):\n"
     "        raise ImportError('simulated no ayatana')\n"
-    "    return _real(name, g, l, f, level)\n"
+    "    return _real(name, globals, locals, fromlist, level)\n"
     "builtins.__import__ = _hook\n"
-    "try:\n"
-    "    import gui.tray\n"
-    "    sys.exit(10)\n"
-    "except BaseException as e:\n"
-    "    if type(e).__name__ == 'TrayUnavailable':\n"
-    "        sys.exit(0)\n"
-    "    sys.exit(11)\n"
+    "import gui.tray as t\n"
+    "src = open(t.__file__, encoding='utf-8').read()\n"
+    "assert 'require_version(\"Ayatana' not in src\n"
+    "assert \"require_version('Ayatana\" not in src\n"
+    "sys.exit(0)\n"
 )
 
 
@@ -112,7 +112,7 @@ def check_no_ayatana():
     env.pop("WAYLAND_DISPLAY", None)
     try:
         p = subprocess.run(
-            [sys.executable, "-c", SNIPPET],
+            [sys.executable, "-c", SNIPPET_SIN_AYATANA],
             cwd=REPO_DIR,
             env=env,
             capture_output=True,
@@ -120,10 +120,12 @@ def check_no_ayatana():
             timeout=60,
         )
         ok = p.returncode == 0
-        detail = "" if ok else ("exit=%s" % p.returncode)
-        return report("sin_ayatana_TrayUnavailable", ok, detail)
+        detail = "" if ok else ("exit=%s stderr=%s" % (
+            p.returncode, (p.stderr or "").replace("\n", " ")[:200]
+        ))
+        return report("sin_ayatana_import_ok", ok, detail)
     except Exception as e:
-        return report("sin_ayatana_TrayUnavailable", False, e)
+        return report("sin_ayatana_import_ok", False, e)
 
 
 try:
@@ -131,7 +133,110 @@ try:
 except ImportError:
     import tray as tray_mod
 
-from gi.repository import Gtk
+from gi.repository import Gio, GLib, Gtk
+
+# Stub mínimo de StatusNotifierWatcher para CI/Xvfb sin host real.
+_WATCHER_OWNER = 0
+_WATCHER_REG = None
+WATCHER_XML = """
+<node>
+  <interface name="org.kde.StatusNotifierWatcher">
+    <method name="RegisterStatusNotifierItem">
+      <arg type="s" name="service" direction="in"/>
+    </method>
+    <method name="RegisterStatusNotifierHost">
+      <arg type="s" name="service" direction="in"/>
+    </method>
+    <property name="RegisteredStatusNotifierItems" type="as" access="read"/>
+    <property name="IsStatusNotifierHostRegistered" type="b" access="read"/>
+    <property name="ProtocolVersion" type="i" access="read"/>
+    <signal name="StatusNotifierItemRegistered">
+      <arg type="s" name="service"/>
+    </signal>
+    <signal name="StatusNotifierItemUnregistered">
+      <arg type="s" name="service"/>
+    </signal>
+    <signal name="StatusNotifierHostRegistered"/>
+  </interface>
+</node>
+"""
+
+
+def ensure_sni_watcher():
+    """Si no hay host SNI, registra un watcher stub en el bus de sesión."""
+    global _WATCHER_OWNER, _WATCHER_REG
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    except Exception:
+        return False
+    try:
+        if tray_mod._sni_host_registered(bus):
+            return True
+    except Exception:
+        pass
+    items = []
+    acquired = {"ok": False}
+
+    def method_call(_c, _s, _p, _i, method, params, invocation):
+        if method == "RegisterStatusNotifierItem":
+            svc = params.unpack()[0]
+            if svc not in items:
+                items.append(svc)
+            try:
+                bus.emit_signal(
+                    None,
+                    "/StatusNotifierWatcher",
+                    "org.kde.StatusNotifierWatcher",
+                    "StatusNotifierItemRegistered",
+                    GLib.Variant("(s)", (svc,)),
+                )
+            except Exception:
+                pass
+        invocation.return_value(None)
+
+    def get_property(_c, _s, _p, _i, prop):
+        if prop == "RegisteredStatusNotifierItems":
+            return GLib.Variant("as", list(items))
+        if prop == "IsStatusNotifierHostRegistered":
+            return GLib.Variant("b", True)
+        if prop == "ProtocolVersion":
+            return GLib.Variant("i", 0)
+        raise Exception(prop)
+
+    def on_name_acquired(_conn, _name):
+        acquired["ok"] = True
+        loop.quit()
+
+    def on_name_lost(_conn, _name):
+        loop.quit()
+
+    try:
+        info = Gio.DBusNodeInfo.new_for_xml(WATCHER_XML)
+        _WATCHER_REG = bus.register_object(
+            "/StatusNotifierWatcher",
+            info.interfaces[0],
+            method_call,
+            get_property,
+            None,
+        )
+        loop = GLib.MainLoop()
+        _WATCHER_OWNER = Gio.bus_own_name_on_connection(
+            bus,
+            "org.kde.StatusNotifierWatcher",
+            Gio.BusNameOwnerFlags.NONE,
+            on_name_acquired,
+            on_name_lost,
+        )
+        GLib.timeout_add(2000, loop.quit)
+        loop.run()
+        return bool(acquired["ok"]) and tray_mod._sni_host_registered(bus)
+    except Exception as e:
+        sys.stdout.write("aviso: stub SNI no disponible (%s)\n" % e)
+        sys.stdout.flush()
+        return False
+
+
+ensure_sni_watcher()
 
 
 class FakeClient:
@@ -170,11 +275,23 @@ class FakeClient:
         del self.calls[:]
 
 
+_ACTIVE_INDICATOR = None
+
+
 def make_indicator(color="ffffff", brightness=100, toggle=None, prefs=None, about=None):
+    global _ACTIVE_INDICATOR
+    # Un solo /StatusNotifierItem por conexión: cerrar el anterior.
+    if _ACTIVE_INDICATOR is not None:
+        try:
+            _ACTIVE_INDICATOR._indicator.close()
+        except Exception:
+            pass
+        _ACTIVE_INDICATOR = None
     fake = FakeClient(color, brightness)
     if toggle is None:
         toggle = lambda: None
     ind = tray_mod.TrayIndicator(fake, toggle, on_preferences=prefs, on_about=about)
+    _ACTIVE_INDICATOR = ind
     return ind, fake
 
 
@@ -242,11 +359,27 @@ def label_of(item):
     return ""
 
 
+# Claves del selftest en español histórico + msgids en inglés (gettext).
+_ITEM_ALIASES = {
+    "abrir": ("abrir", "open"),
+    "fijar": ("fijar", "steady"),
+    "respir": ("respir", "breath"),
+    "arco": ("arco", "rainb"),
+    "apagar": ("apagar", "turn off"),
+    "restaurar": ("restaurar", "restore"),
+    "rojo": ("rojo", "red"),
+    "prefer": ("prefer",),
+    "acerca": ("acerca", "about"),
+    "salir": ("salir", "quit"),
+}
+
+
 def find_item(ind, key):
-    want = norm_label(key)
+    aliases = _ITEM_ALIASES.get(key, (key,))
+    wants = [norm_label(a) for a in aliases if a]
     for it in iter_items(root_menu(ind)):
         lab = norm_label(label_of(it))
-        if want and want in lab:
+        if lab and any(w and w in lab for w in wants):
             return it
     return None
 
@@ -315,6 +448,18 @@ def check_menu_abrir():
     return report("menu_abrir", hit.get("toggle") is True, "on_toggle_window no llamado")
 
 
+def _wait_call(fake, name, timeout=1.0):
+    import time
+
+    limite = time.monotonic() + timeout
+    while time.monotonic() < limite:
+        got = last_call(fake, name)
+        if got is not None:
+            return got
+        time.sleep(0.025)
+    return last_call(fake, name)
+
+
 def check_menu_fijar():
     ind, fake = make_indicator(color="1a2b3c", brightness=100)
     try:
@@ -330,10 +475,11 @@ def check_menu_fijar():
     if item is None:
         return report("menu_fijar", False, "item Fijar no encontrado")
     try:
-        activate(item)
+        # Steady ya puede estar activo: forzar re-entrada por la API.
+        ind._do_fijar()
     except Exception as e:
         return report("menu_fijar", False, e)
-    got = last_call(fake, "set_color")
+    got = _wait_call(fake, "set_color")
     ok = got is not None and str(got[1]).strip().lstrip("#").lower() == "1a2b3c"
     return report("menu_fijar", ok, "calls=%s" % (fake.calls,))
 
@@ -345,10 +491,13 @@ def check_menu_respirar():
     if item is None:
         return report("menu_respirar", False, "item Respirar no encontrado")
     try:
-        activate(item)
+        if hasattr(item, "set_active"):
+            item.set_active(True)
+        else:
+            activate(item)
     except Exception as e:
         return report("menu_respirar", False, e)
-    got = last_call(fake, "animation")
+    got = _wait_call(fake, "animation")
     ok = got is not None and str(got[1]).lower() == "breathe"
     return report("menu_respirar", ok, "calls=%s" % (fake.calls,))
 
@@ -360,10 +509,13 @@ def check_menu_arcoiris():
     if item is None:
         return report("menu_arcoiris", False, "item Arcoiris no encontrado")
     try:
-        activate(item)
+        if hasattr(item, "set_active"):
+            item.set_active(True)
+        else:
+            activate(item)
     except Exception as e:
         return report("menu_arcoiris", False, e)
-    got = last_call(fake, "animation")
+    got = _wait_call(fake, "animation")
     ok = got is not None and str(got[1]).lower() == "rainbow"
     return report("menu_arcoiris", ok, "calls=%s" % (fake.calls,))
 
@@ -378,7 +530,7 @@ def check_menu_apagar():
         activate(item)
     except Exception as e:
         return report("menu_apagar", False, e)
-    got = last_call(fake, "off")
+    got = _wait_call(fake, "off")
     return report("menu_apagar", got is not None, "calls=%s" % (fake.calls,))
 
 
@@ -392,7 +544,7 @@ def check_menu_restaurar():
         activate(item)
     except Exception as e:
         return report("menu_restaurar", False, e)
-    got = last_call(fake, "restore")
+    got = _wait_call(fake, "restore")
     return report("menu_restaurar", got is not None, "calls=%s" % (fake.calls,))
 
 
@@ -403,10 +555,13 @@ def check_menu_color_rojo():
     if item is None:
         return report("menu_color_rojo", False, "item Rojo no encontrado")
     try:
-        activate(item)
+        if hasattr(item, "set_active"):
+            item.set_active(True)
+        else:
+            activate(item)
     except Exception as e:
         return report("menu_color_rojo", False, e)
-    got = last_call(fake, "set_color")
+    got = _wait_call(fake, "set_color")
     ok = got is not None and str(got[1]).strip().lstrip("#").lower() == "ff0000"
     return report("menu_color_rojo", ok, "calls=%s" % (fake.calls,))
 
@@ -491,6 +646,8 @@ def check_slider_valor():
 
 
 def check_scroll(name, start, steps, expected):
+    import time
+
     ind, fake = make_indicator(brightness=start)
     set_brightness_state(ind, fake, start)
     fn = getattr(ind, "_on_scroll", None)
@@ -504,8 +661,14 @@ def check_scroll(name, start, steps, expected):
             fn(steps)
     except Exception as e:
         return report(name, False, e)
-    got = last_call(fake, "set_brightness")
-    val = got[1] if got is not None else None
+    # BackendQueue es asíncrona: esperar el set_brightness.
+    val = None
+    for _ in range(40):
+        got = last_call(fake, "set_brightness")
+        if got is not None:
+            val = got[1]
+            break
+        time.sleep(0.025)
     return report(name, val == expected, "esperado set_brightness(%s) obtenido %s calls=%s" % (expected, val, fake.calls))
 
 

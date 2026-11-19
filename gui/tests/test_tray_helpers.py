@@ -1,7 +1,7 @@
 """Tests de los helpers puros de la bandeja.
 
-Importación condicional: en sistemas sin Gtk3/Ayatana/pycairo (p. ej. CI)
-toda la clase se salta con skip.
+Importación condicional: en sistemas sin Gtk3/Gio/pycairo (p. ej. CI)
+toda la clase se salta con skip. Ayatana ya no es requisito.
 """
 import os
 import shutil
@@ -13,7 +13,7 @@ try:
 
     DISPONIBLE = True
     FALTA = None
-except Exception as exc:  # gi/Ayatana/cairo ausentes
+except Exception as exc:  # gi/Gtk3/cairo ausentes
     tray = None
     DISPONIBLE = False
     FALTA = str(exc)

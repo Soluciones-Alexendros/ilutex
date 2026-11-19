@@ -6,10 +6,10 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: ilutex 3.0.2\n"
+"Project-Id-Version: ilutex 3.1.1\n"
 "Report-Msgid-Bugs-To: https://github.com/Soluciones-Alexendros/ilutex/"
 "issues\n"
-"POT-Creation-Date: 2026-11-16 23:16+0100\n"
+"POT-Creation-Date: 2026-11-18 22:26+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,21 +27,21 @@ msgstr ""
 msgid "unknown intent: {kind}"
 msgstr ""
 
-#: gui/client.py:193 gui/client.py:287
+#: gui/client.py:261 gui/client.py:355
 #, python-brace-format
 msgid "Cannot find the binary ({bin}). Install it first."
 msgstr ""
 
-#: gui/client.py:198
+#: gui/client.py:266
 msgid "The keyboard took too long to respond."
 msgstr ""
 
-#: gui/client.py:200 gui/client.py:292
+#: gui/client.py:268 gui/client.py:360
 #, python-brace-format
 msgid "The keyboard did not respond: {e}"
 msgstr ""
 
-#: gui/client.py:206
+#: gui/client.py:274
 #, python-brace-format
 msgid "The keyboard did not respond (code {code})."
 msgstr ""
@@ -90,312 +90,316 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: gui/preview.py:69 gui/tray.py:294 gui/window.py:310 gui/window.py:521
+#: gui/preview.py:69 gui/tray.py:562 gui/window.py:313 gui/window.py:524
 msgid "Breathe"
 msgstr ""
 
-#: gui/preview.py:71 gui/tray.py:295 gui/window.py:310 gui/window.py:522
+#: gui/preview.py:71 gui/tray.py:563 gui/window.py:313 gui/window.py:525
 msgid "Rainbow"
 msgstr ""
 
-#: gui/preview.py:72 gui/tray.py:293 gui/window.py:310 gui/window.py:520
+#: gui/preview.py:72 gui/tray.py:561 gui/window.py:313 gui/window.py:523
 msgid "Steady"
 msgstr ""
 
-#: gui/settings.py:181 gui/tray.py:229 gui/window.py:258 gui/window.py:502
+#: gui/settings.py:237 gui/tray.py:502 gui/window.py:261 gui/window.py:505
 msgid "Preferences"
 msgstr ""
 
-#: gui/settings.py:188
+#: gui/settings.py:244
 msgid "Appearance"
 msgstr ""
 
-#: gui/settings.py:193
+#: gui/settings.py:249
 msgid "Theme"
 msgstr ""
 
-#: gui/settings.py:194
+#: gui/settings.py:250
 msgid "System"
 msgstr ""
 
-#: gui/settings.py:194
+#: gui/settings.py:250
 msgid "Light"
 msgstr ""
 
-#: gui/settings.py:194
+#: gui/settings.py:250
 msgid "Dark"
 msgstr ""
 
-#: gui/settings.py:207
+#: gui/settings.py:263
 msgid "Stage effects"
 msgstr ""
 
-#: gui/settings.py:208
+#: gui/settings.py:264
 msgid "Particles and animation in the preview."
 msgstr ""
 
-#: gui/settings.py:220
+#: gui/settings.py:276
 msgid "Behavior"
 msgstr ""
 
-#: gui/settings.py:225
+#: gui/settings.py:281
 msgid "Launch at login"
 msgstr ""
 
-#: gui/settings.py:226
+#: gui/settings.py:282
 msgid "Open in the tray when the session starts."
 msgstr ""
 
-#: gui/settings.py:235
+#: gui/settings.py:291
 msgid "Restore color at startup"
 msgstr ""
 
-#: gui/settings.py:236
+#: gui/settings.py:292
 msgid "Apply the last color when opening."
 msgstr ""
 
-#: gui/settings.py:245
+#: gui/settings.py:301
 msgid "Restore color now"
 msgstr ""
 
-#: gui/settings.py:246
+#: gui/settings.py:302
 msgid "Applies the last saved color."
 msgstr ""
 
-#: gui/settings.py:254 gui/tray.py:235
+#: gui/settings.py:310 gui/tray.py:508
 msgid "About"
 msgstr ""
 
-#: gui/settings.py:260
+#: gui/settings.py:316
 msgid "Version"
 msgstr ""
 
-#: gui/settings.py:264
+#: gui/settings.py:320
 msgid "License"
 msgstr ""
 
-#: gui/settings.py:268
+#: gui/settings.py:324
 msgid "Source code"
 msgstr ""
 
-#: gui/settings.py:274
+#: gui/settings.py:330
 msgid "Device"
 msgstr ""
 
-#: gui/settings.py:342 gui/settings.py:346 gui/window.py:770
+#: gui/settings.py:398 gui/settings.py:402 gui/window.py:773
 msgid "no keyboard in sight"
 msgstr ""
 
-#: gui/settings.py:343 gui/window.py:245 gui/window.py:767
+#: gui/settings.py:399 gui/window.py:248 gui/window.py:770
 msgid "looking at the keyboard…"
 msgstr ""
 
-#: gui/settings.py:356 gui/window.py:764
+#: gui/settings.py:412 gui/window.py:767
 msgid "zone(s)"
 msgstr ""
 
-#: gui/tray.py:211
+#: gui/tray.py:484
 msgid "Open window"
 msgstr ""
 
-#: gui/tray.py:216
+#: gui/tray.py:489
 msgid "Colors"
 msgstr ""
 
-#: gui/tray.py:219
+#: gui/tray.py:492
 msgid "Animations"
 msgstr ""
 
-#: gui/tray.py:222
+#: gui/tray.py:495
 msgid "Turn off"
 msgstr ""
 
-#: gui/tray.py:226
+#: gui/tray.py:499
 msgid "Restore"
 msgstr ""
 
-#: gui/tray.py:241
+#: gui/tray.py:514
 msgid "Quit"
 msgstr ""
 
-#: gui/tray.py:262 gui/window.py:350 gui/window.py:553
+#: gui/tray.py:530 gui/window.py:353 gui/window.py:556
 msgid "Brightness"
 msgstr ""
 
-#: gui/tray.py:282 gui/tray.py:539
+#: gui/tray.py:550 gui/tray.py:820
 msgid "Your shade…"
 msgstr ""
 
-#: gui/window.py:302 gui/window.py:503
+#: gui/window.py:305 gui/window.py:506
 msgid "How it moves"
 msgstr ""
 
-#: gui/window.py:303 gui/window.py:505
+#: gui/window.py:306 gui/window.py:508
 msgid "Hold the light steady or let it breathe."
 msgstr ""
 
-#: gui/window.py:323 gui/window.py:516
+#: gui/window.py:326 gui/window.py:519
 msgid "Stop motion"
 msgstr ""
 
-#: gui/window.py:330 gui/window.py:507
+#: gui/window.py:333 gui/window.py:510
 msgid "How much light you want"
 msgstr ""
 
-#: gui/window.py:331 gui/window.py:509
+#: gui/window.py:334 gui/window.py:512
 msgid "Slide or use − / + . It saves itself."
 msgstr ""
 
-#: gui/window.py:364 gui/window.py:517
+#: gui/window.py:367 gui/window.py:520
 msgid "Lower brightness"
 msgstr ""
 
-#: gui/window.py:366 gui/window.py:518
+#: gui/window.py:369 gui/window.py:521
 msgid "Raise brightness"
 msgstr ""
 
-#: gui/window.py:378 gui/window.py:511
+#: gui/window.py:381 gui/window.py:514
 msgid "Choose your light"
 msgstr ""
 
-#: gui/window.py:379 gui/window.py:513
+#: gui/window.py:382 gui/window.py:516
 msgid "Tap a filter or create your own shade."
 msgstr ""
 
-#: gui/window.py:408 gui/window.py:539
+#: gui/window.py:411 gui/window.py:542
 msgid "Follow desktop"
 msgstr ""
 
-#: gui/window.py:438 gui/window.py:515
+#: gui/window.py:441 gui/window.py:518
 msgid "Custom shade"
 msgstr ""
 
-#: gui/window.py:578
+#: gui/window.py:581
 msgid "Something went wrong"
 msgstr ""
 
-#: gui/window.py:579 gui/window.py:1143
+#: gui/window.py:582 gui/window.py:1151
 msgid "Got it"
 msgstr ""
 
-#: gui/window.py:625
+#: gui/window.py:628
 msgid "Could not set the color"
 msgstr ""
 
-#: gui/window.py:635
+#: gui/window.py:638
 msgid "Could not adjust the brightness"
 msgstr ""
 
-#: gui/window.py:642
+#: gui/window.py:645
 msgid "Could not stop"
 msgstr ""
 
-#: gui/window.py:653
+#: gui/window.py:656
 msgid "Could not start the animation"
 msgstr ""
 
-#: gui/window.py:655
+#: gui/window.py:658
 #, python-brace-format
 msgid "{mode} motion running"
 msgstr ""
 
-#: gui/window.py:754
+#: gui/window.py:757
 #, python-brace-format
 msgid "moving (pid {pid})"
 msgstr ""
 
-#: gui/window.py:759
+#: gui/window.py:762
 msgid "steady light"
 msgstr ""
 
-#: gui/window.py:804 gui/window.py:1023
+#: gui/window.py:807 gui/window.py:1026
 msgid "Your shade"
 msgstr ""
 
-#: gui/window.py:827 gui/window.py:845
+#: gui/window.py:830 gui/window.py:848
 #, python-brace-format
 msgid "{nombre} applied"
 msgstr ""
 
-#: gui/window.py:862
+#: gui/window.py:865
 #, python-brace-format
 msgid "Your shade #{hexv} applied"
 msgstr ""
 
-#: gui/window.py:935
+#: gui/window.py:938
 msgid "Light steady again"
 msgstr ""
 
-#: gui/window.py:1004
+#: gui/window.py:1007
 msgid "Leave iLutex?"
 msgstr ""
 
-#: gui/window.py:1005
+#: gui/window.py:1008
 msgid "There is a change still on its way to the keyboard."
 msgstr ""
 
-#: gui/window.py:1007
+#: gui/window.py:1010
 msgid "Stay"
 msgstr ""
 
-#: gui/window.py:1008 gui/window.py:1031
+#: gui/window.py:1011 gui/window.py:1034
 msgid "Leave"
 msgstr ""
 
-#: gui/window.py:1030
+#: gui/window.py:1033
 msgid "Stay here"
 msgstr ""
 
-#: gui/window.py:1032
+#: gui/window.py:1035
 msgid "Apply steady light"
 msgstr ""
 
-#: gui/window.py:1033
+#: gui/window.py:1036
 msgid "Pick a filter"
 msgstr ""
 
-#: gui/window.py:1034
+#: gui/window.py:1037
 msgid "Brush the light up or down"
 msgstr ""
 
-#: gui/window.py:1035
+#: gui/window.py:1038
 msgid "Navigate the filters"
 msgstr ""
 
-#: gui/window.py:1035
+#: gui/window.py:1038
 msgid "Arrow keys"
 msgstr ""
 
-#: gui/window.py:1042 gui/window.py:1058
+#: gui/window.py:1045 gui/window.py:1061
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: gui/window.py:1131
+#: gui/window.py:1133
 msgid ""
 "Could not talk to the keyboard. It is usually a system permission and one "
 "click fixes it."
 msgstr ""
 
-#: gui/window.py:1133
+#: gui/window.py:1136
 msgid ""
-"Could not talk to the keyboard. Install it by hand and retry: install -m644 "
-"~/.local/share/ilutex/70-ilutex.rules /etc/udev/rules.d/70-ilutex.rules && "
-"sudo udevadm control --reload && sudo udevadm trigger --subsystem-"
-"match=hidraw"
+"Could not talk to the keyboard. Install it by hand and retry: sudo install "
+"-m644 /usr/lib/udev/rules.d/70-ilutex.rules /etc/udev/rules.d/70-"
+"ilutex.rules && sudo udevadm control --reload && sudo udevadm trigger --"
+"subsystem-match=hidraw"
 msgstr ""
 
-#: gui/window.py:1135
+#: gui/window.py:1143
 msgid "No keyboard access"
 msgstr ""
 
-#: gui/window.py:1141
+#: gui/window.py:1149
 msgid "Install permission"
 msgstr ""
 
-#: gui/window.py:1142
+#: gui/window.py:1150
 msgid "Retry"
 msgstr ""
 
-#: gui/window.py:1183
+#: gui/window.py:1186
+msgid "Permission not installed (packaged udev rule missing or hash mismatch)."
+msgstr ""
+
+#: gui/window.py:1199
 msgid "Permission not installed (pkexec cancelled or not authorized)."
 msgstr ""

@@ -1,5 +1,4 @@
 import os
-import shutil
 import subprocess
 import threading
 
@@ -25,7 +24,11 @@ load, log_exc, gettext_func = api(__file__)
 _client_mod = load("client")
 IlutexClient = _client_mod.IlutexClient
 IlutexError = _client_mod.IlutexError
-udev_install_argv = _client_mod.udev_install_argv
+udev_pkexec_commands = _client_mod.udev_pkexec_commands
+udev_source_verified = _client_mod.udev_source_verified
+UDEV_PACKAGED_SRC = _client_mod.UDEV_PACKAGED_SRC
+UDEV_DEST = _client_mod.UDEV_DEST
+PKEXEC_BIN = _client_mod.PKEXEC_BIN
 state_paths = _client_mod.state_paths
 _colors = load("colors")
 COLORES = _colors.COLORES
@@ -1095,29 +1098,28 @@ class MesaWindow(Adw.ApplicationWindow):
     # --- diálogo udev / pkexec (subprocess fuera del bucle GTK) -----------
 
     def _udev_source(self):
-        try:
-            return os.path.expanduser("~/.local/share/ilutex/70-ilutex.rules")
-        except Exception:
-            log_exc("ruta udev")
-            return ""
+        """Único origen privilegiado: regla empaquetada en /usr/lib."""
+        return UDEV_PACKAGED_SRC
 
     def _udev_can_install(self):
         try:
-            if shutil.which("pkexec") is None:
+            if not (
+                os.path.isfile(PKEXEC_BIN) and os.access(PKEXEC_BIN, os.X_OK)
+            ):
                 return False
         except Exception:
             log_exc("buscar pkexec")
             return False
         try:
-            return os.path.isfile(self._udev_source())
+            return udev_source_verified(self._udev_source())
         except Exception:
-            log_exc("regla udev local")
+            log_exc("regla udev empaquetada")
             return False
 
     def _maybe_udev_dialog(self):
         """Se decide con el info ya traído por hilo: aquí no hay subprocess."""
         try:
-            if os.path.exists("/etc/udev/rules.d/70-ilutex.rules"):
+            if os.path.exists(UDEV_DEST):
                 return False
         except Exception:
             log_exc("regla udev del sistema")
@@ -1130,7 +1132,13 @@ class MesaWindow(Adw.ApplicationWindow):
         if can:
             body = _("Could not talk to the keyboard. It is usually a system permission and one click fixes it.")
         else:
-            body = _("Could not talk to the keyboard. Install it by hand and retry: install -m644 ~/.local/share/ilutex/70-ilutex.rules /etc/udev/rules.d/70-ilutex.rules && sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw")
+            body = _(
+                "Could not talk to the keyboard. Install it by hand and retry: "
+                "sudo install -m644 /usr/lib/udev/rules.d/70-ilutex.rules "
+                "/etc/udev/rules.d/70-ilutex.rules && "
+                "sudo udevadm control --reload && "
+                "sudo udevadm trigger --subsystem-match=hidraw"
+            )
         try:
             dlg = Adw.AlertDialog.new(_("No keyboard access"), body)
         except Exception:
@@ -1172,15 +1180,25 @@ class MesaWindow(Adw.ApplicationWindow):
 
     def _instalar_udev(self):
         error = None
-        src = self._udev_source()
-        dst = "/etc/udev/rules.d/70-ilutex.rules"
-        cmd = udev_install_argv(src, dst)
+        cmds = udev_pkexec_commands()
+        if cmds is None:
+            error = _(
+                "Permission not installed (packaged udev rule missing or hash mismatch)."
+            )
+            GLib.idle_add(self._fin_udev, error)
+            return
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            if proc.returncode != 0:
-                error = (proc.stderr or proc.stdout or "").strip()
-                if not error:
-                    error = _("Permission not installed (pkexec cancelled or not authorized).")
+            for cmd in cmds:
+                proc = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=60
+                )
+                if proc.returncode != 0:
+                    error = (proc.stderr or proc.stdout or "").strip()
+                    if not error:
+                        error = _(
+                            "Permission not installed (pkexec cancelled or not authorized)."
+                        )
+                    break
         except Exception as e:
             log_exc("instalar permiso")
             error = str(e)

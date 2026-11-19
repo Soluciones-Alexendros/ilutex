@@ -3,7 +3,7 @@
 | ID | Título | Estado | Resumen |
 |---|---|---|---|
 | 1 | Nombre `keybackcon` | Histórica | Criterio vigente: un solo nombre para binario, repo y App ID. El nombre actual es `ilutex` (desde 3.0.0), con migración heredada desde `kbd-rgb`/`keybackcon`. |
-| 2 | Cargo con cero dependencias | Aceptada | Binario pequeño y reproducible sin crates externos. |
+| 2 | Cargo con cero dependencias | Aceptada, enmendada | Binario de producción sin crates; `criterion` solo en `[dev-dependencies]`. |
 | 3 | Instancia única vía pidfile validado | Mecanismo sustituido por ADR 13 | Invariante: una sola animación viva. El mecanismo `create_new`+pidfile queda sustituido por bloqueo con descriptor (`flock`). |
 | 4 | Brillo por escala RGB persistente | Aceptada | Sin canal de brillo en firmware, el % escala el RGB y persiste. |
 | 5 | GUI: mesa de luz con light-stage | Aceptada | Fijar luz en <2 s con vista previa fiel, sin prueba-error. |
@@ -11,7 +11,7 @@
 | 7 | CLI estructurada sin dependencias | Aceptada | `enum Command` + parser manual con mismos textos y salidas. |
 | 8 | Protocolo centralizado en `protocol.rs` | Aceptada | Un solo archivo dueño de los bytes del cable, sin literales duplicados. |
 | 9 | GUI por subproceso, sin FFI | Aplazada | Sin cdylib/FFI por ahora; se acepta duplicar la matemática de vista previa. |
-| 10 | Rustdoc, pedantic y benchmarks sin dependencias | Aceptada | Calidad medible (rustdoc, clippy pedantic, bench/property propios) sin `criterion`/`proptest`. |
+| 10 | Rustdoc, pedantic y benchmarks sin dependencias | Aceptada, enmendada | Rustdoc/pedantic/property propios; benches con `criterion` solo como `[dev-dependencies]`. |
 | 11 | Cota `HID_IOCTL_MAX_LEN` en el ioctl | Aceptada | Rechazar en construcción lo que el campo size de 14 bits no puede codificar. |
 | 12 | Alineación al canon P0+P1+P2 | Aceptada | Jobs `quality`/`test`/`build`/`smoke`, docs canónicos y Renovate; sin clonar stacks ajenos. |
 | 13 | Exclusión por descriptor y un solo escritor | Aceptada, enmendada | Todo escritor HID toma el mismo `flock` en `/run/ilutex/writer.lock`. Sin daemon. La sesión activa no es una política adicional. |
@@ -33,6 +33,16 @@ romper a nadie.
 Estructura `src/` por módulos + `cargo test/clippy/fmt` en CI. Motivo:
 compilación reproducible y binario estático pequeño; el ioctl cabe en
 unas líneas sin crates.
+
+**Enmienda.** El contrato de «cero dependencias» aplica al binario de
+producción: `[dependencies]` del crate `ilutex` permanece vacío y
+`cargo deb` / el release no enlazan crates externos. Se admite
+**únicamente** `criterion` como entrada de `[dev-dependencies]` (árbol
+de benches y CI de rendimiento); no abre la puerta a otros crates de
+producción ni a un `[dev-dependencies]` genérico sin ADR. El
+`Cargo.lock` puede listar el árbol de `criterion`; el candado de CI
+comprueba versión de `ilutex` y ausencia de dependencias normales del
+paquete raíz, no que el lockfile tenga un solo `[[package]]`.
 
 ## 3. Instancia única vía pidfile validado
 **Estado: mecanismo sustituido por ADR 13.** El invariante (una sola
@@ -103,15 +113,24 @@ El crate documenta con `//!`/`///` bajo `missing_docs`, activa
 `clippy::pedantic` con `#[allow]` puntuales donde un cambio de tipos alteraría
 la aritmética (HSV, casts acotados de la animación) o el despacho del CLI, mide
 con `examples/bench_colors.rs` (`std::time::Instant` + `std::hint::black_box`)
-en lugar de `criterion`, y cubre invariantes con un xorshift64 determinista de
+y cubre invariantes con un xorshift64 determinista de
 semilla fija en los módulos de test en lugar de `proptest`. El ejemplo incluye
 los módulos con `#[path]` (con `#![allow(dead_code)]`) porque el paquete
 publica un binario, no una `lib`. Motivo: mantener la identidad de cero
-dependencias (ADR 2) sin renunciar a calidad medible; `criterion` y `proptest`
-arrastrarían árboles de dependencias desproporcionados para unas pocas
-operaciones puras. Trade-off aceptado: los benchmarks dan tiempo medio (no
-percentiles) y las property tests usan un generador propio de 64 bits;
-suficiente para las invariantes actuales y reproducible en CI.
+dependencias de producción (ADR 2) sin renunciar a calidad medible;
+`proptest` seguiría arrastrando un árbol desproporcionado para las
+invariantes actuales.
+
+**Enmienda.** Los benches de camino puro usan `criterion` declarado
+solo en `[dev-dependencies]` (`benches/set_bench.rs`,
+`benches/info_bench.rs`; `[[bench]]` con `harness = false` porque el
+paquete es binario-only e incluye módulos vía `#[path]`). El ejemplo
+`bench_colors` se conserva como medición ligera sin crates; los
+percentiles y la comparación en CI viven en
+`.github/workflows/benchmark.yml`. El presupuesto p95 ≤ 50 ms de
+`ilutex set` contra hardware es medición **manual** y no falla CI.
+Trade-off aceptado: las property tests siguen con el generador propio
+de 64 bits; `proptest` no entra.
 
 ## 11. Cota `HID_IOCTL_MAX_LEN` en el ioctl
 `hid_ioctl_request` rechaza 0 y `>0x3FFF` (`HID_IOCTL_MAX_LEN`): el campo size solo

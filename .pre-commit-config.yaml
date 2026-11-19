@@ -1,5 +1,19 @@
-# Hooks locales (sin repos externos). Clippy sigue en el job quality de CI.
+# Hooks externos (informe H-09) + locales. Clippy en CI (quality) sigue siendo el gate.
+# Revs verificados en origin (2026-11-18): doublify/pre-commit-rust v1.0,
+# shellcheck-py/shellcheck-py v0.10.0.1.
 repos:
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        args: ["--", "--check"]
+      - id: cargo-check
+      - id: clippy
+        args: ["--", "-D", "warnings"]
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
   - repo: local
     hooks:
       - id: cargo-fmt
@@ -14,7 +28,14 @@ repos:
         pass_filenames: false
         entry: >-
           bash -c 'shellcheck
-          scripts/*.sh
+          scripts/install.sh
+          scripts/install-common.sh
+          scripts/install-cli.sh
+          scripts/install-gui.sh
+          scripts/smoke.sh
+          scripts/check-installed.sh
+          scripts/check-version.sh
+          scripts/test-install-root-fail.sh
           packaging/ilutex-gui
           packaging/debian/postinst
           packaging/debian/prerm

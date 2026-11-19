@@ -194,8 +194,8 @@ pub struct Lamp<T: HidTransport = HidRaw> {
 }
 
 /// Lee VID/PID USB del hidraw vía uevent (`HID_ID=bustype:vid:pid`).
-fn usb_ids_for_hidraw(hidraw_name: &str) -> Option<(u16, u16)> {
-    let uevent = PathBuf::from(format!("/sys/class/hidraw/{hidraw_name}/device/uevent"));
+fn usb_ids_for_hidraw(sys_hidraw: &Path, hidraw_name: &str) -> Option<(u16, u16)> {
+    let uevent = sys_hidraw.join(hidraw_name).join("device/uevent");
     let text = fs::read_to_string(uevent).ok()?;
     for line in text.lines() {
         let Some(rest) = line.strip_prefix("HID_ID=") else {
@@ -213,43 +213,58 @@ fn usb_ids_for_hidraw(hidraw_name: &str) -> Option<(u16, u16)> {
     None
 }
 
-fn matches_supported_profile(hidraw_name: &str) -> bool {
-    match usb_ids_for_hidraw(hidraw_name) {
+fn matches_supported_profile(sys_hidraw: &Path, hidraw_name: &str) -> bool {
+    match usb_ids_for_hidraw(sys_hidraw, hidraw_name) {
         Some((vid, pid)) => vid == SUPPORTED_VID && pid == SUPPORTED_PID,
         // Sin uevent legible: no escribir informes específicos.
         None => false,
     }
 }
 
+fn lamp_not_found() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::NotFound,
+        "no se encontró el dispositivo LampArray admitido (VID 0414 / PID 8104); \
+         ¿está cargada la regla udev? mira con 'ilutex info'",
+    )
+}
+
+/// Barrido de `sys_hidraw` (normalmente `/sys/class/hidraw`) buscando firma
+/// `LampArray` y VID/PID admitidos. Inyectable en tests sin sysfs real.
+fn find_in(sys_hidraw: &Path) -> io::Result<PathBuf> {
+    let mut found: Vec<PathBuf> = Vec::new();
+    // Sin el directorio (p. ej. contenedores sin sysfs HID) → mismo NotFound
+    // con LampArray que el barrido vacío; no filtrar el errno crudo.
+    let entries = match fs::read_dir(sys_hidraw) {
+        Ok(it) => it,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Err(lamp_not_found()),
+        Err(e) => return Err(e),
+    };
+    for e in entries {
+        let e = e?;
+        let name = e.file_name().to_string_lossy().into_owned();
+        if !name.starts_with("hidraw") {
+            continue;
+        }
+        if !matches_supported_profile(sys_hidraw, &name) {
+            continue;
+        }
+        let desc = e.path().join(REPORT_DESCRIPTOR_SUBPATH);
+        if let Ok(d) = fs::read(&desc) {
+            let sig = crate::protocol::device_signature();
+            if d.windows(sig.len()).any(|w| w == sig.as_slice()) {
+                found.push(PathBuf::from(format!("/dev/{name}")));
+            }
+        }
+    }
+    found.sort();
+    found.into_iter().next().ok_or_else(lamp_not_found)
+}
+
 impl Lamp<HidRaw> {
     /// Busca el hidraw con firma `LampArray` y VID/PID admitidos.
     pub fn find() -> io::Result<PathBuf> {
-        let mut found: Vec<PathBuf> = Vec::new();
-        for e in fs::read_dir("/sys/class/hidraw")? {
-            let e = e?;
-            let name = e.file_name().to_string_lossy().into_owned();
-            if !name.starts_with("hidraw") {
-                continue;
-            }
-            if !matches_supported_profile(&name) {
-                continue;
-            }
-            let desc = e.path().join(REPORT_DESCRIPTOR_SUBPATH);
-            if let Ok(d) = fs::read(&desc) {
-                let sig = crate::protocol::device_signature();
-                if d.windows(sig.len()).any(|w| w == sig.as_slice()) {
-                    found.push(PathBuf::from(format!("/dev/{name}")));
-                }
-            }
-        }
-        found.sort();
-        found.into_iter().next().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                "no se encontró el dispositivo LampArray admitido (VID 0414 / PID 8104); \
-                 ¿está cargada la regla udev? mira con 'ilutex info'",
-            )
-        })
+        find_in(Path::new("/sys/class/hidraw"))
     }
 
     /// Localiza, abre y consulta los atributos del dispositivo.
@@ -404,6 +419,169 @@ mod tests {
         let mut lamp = Lamp::with_transport(fake);
         let err = lamp.attrs().unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn hidraw_open_ruta_inexistente_explica_udev() {
+        let Err(err) = HidRaw::open(PathBuf::from("/dev/ilutex-no-existe-xyz")) else {
+            panic!("se esperaba error al abrir ruta inexistente");
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("no se pudo abrir"), "{msg}");
+        assert!(msg.contains("ilutex-no-existe-xyz"), "{msg}");
+    }
+
+    #[test]
+    fn find_sin_aero_x16_es_not_found_o_hidraw() {
+        // En CI sin el teclado: NotFound (cubre el barrido de sysfs). Con
+        // hardware real: Ok bajo /dev/hidraw*. Ambos cierran el camino.
+        match Lamp::find() {
+            Err(e) => {
+                assert_eq!(e.kind(), io::ErrorKind::NotFound, "{e}");
+                assert!(e.to_string().contains("LampArray"), "{e}");
+            }
+            Ok(p) => {
+                let s = p.to_string_lossy();
+                assert!(s.contains("hidraw"), "{s}");
+            }
+        }
+    }
+
+    fn fixture_sys_hidraw(tag: &str) -> PathBuf {
+        let dir = PathBuf::from(format!(
+            "/tmp/ilutex-hidraw-{}-{}-{tag}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn write_hidraw_node(sys: &Path, name: &str, hid_id: Option<&str>, desc: Option<&[u8]>) {
+        let node = sys.join(name).join("device");
+        fs::create_dir_all(&node).unwrap();
+        if let Some(id) = hid_id {
+            fs::write(
+                node.join("uevent"),
+                format!("DRIVER=hid-generic\nHID_ID={id}\nHID_NAME=fixture\n"),
+            )
+            .unwrap();
+        }
+        if let Some(bytes) = desc {
+            fs::write(node.join("report_descriptor"), bytes).unwrap();
+        }
+    }
+
+    #[test]
+    fn find_in_sin_directorio_es_not_found_lamparray() {
+        let missing = PathBuf::from(format!(
+            "/tmp/ilutex-hidraw-missing-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let _ = fs::remove_dir_all(&missing);
+        let err = find_in(&missing).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::NotFound, "{err}");
+        assert!(err.to_string().contains("LampArray"), "{err}");
+    }
+
+    #[test]
+    fn find_in_vacio_y_nodos_ajenos_es_not_found() {
+        let sys = fixture_sys_hidraw("empty");
+        fs::create_dir_all(sys.join("other")).unwrap();
+        write_hidraw_node(
+            &sys,
+            "hidraw0",
+            Some("0003:00009999:00009999"),
+            Some(&[0x00, 0x01]),
+        );
+        write_hidraw_node(&sys, "hidraw1", Some("0003:bad"), Some(&[0x05, 0x59]));
+        write_hidraw_node(
+            &sys,
+            "hidraw2",
+            None,
+            Some(crate::protocol::DEVICE_SIGNATURE),
+        );
+        let err = find_in(&sys).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::NotFound, "{err}");
+        assert!(err.to_string().contains("LampArray"), "{err}");
+        let _ = fs::remove_dir_all(&sys);
+    }
+
+    #[test]
+    fn find_in_elige_hidraw_con_vid_pid_y_firma() {
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        unsafe {
+            std::env::remove_var("ILUTEX_HID_SIGNATURE");
+        }
+
+        let sys = fixture_sys_hidraw("match");
+        // Candidato válido pero sin firma → se ignora.
+        write_hidraw_node(
+            &sys,
+            "hidraw3",
+            Some("0003:00000414:00008104"),
+            Some(&[0xaa, 0xbb]),
+        );
+        // Firma correcta y VID/PID admitidos → gana (menor nombre tras sort).
+        let mut desc = vec![0x00, 0xff];
+        desc.extend_from_slice(crate::protocol::DEVICE_SIGNATURE);
+        desc.push(0x11);
+        write_hidraw_node(&sys, "hidraw9", Some("0003:00000414:00008104"), Some(&desc));
+        write_hidraw_node(&sys, "hidraw8", Some("0003:00000414:00008104"), Some(&desc));
+        // Líneas uevent basura + HID_ID válido al final (menor nombre gana).
+        write_hidraw_node(&sys, "hidraw7", Some("0003:00000414:00008104"), Some(&desc));
+        fs::write(
+            sys.join("hidraw7/device/uevent"),
+            "FOO=1\nHID_ID=0003:00000414:00008104\n",
+        )
+        .unwrap();
+
+        let path = find_in(&sys).unwrap();
+        assert_eq!(path, PathBuf::from("/dev/hidraw7"));
+        assert!(matches_supported_profile(&sys, "hidraw7"));
+        assert_eq!(
+            usb_ids_for_hidraw(&sys, "hidraw7"),
+            Some((SUPPORTED_VID, SUPPORTED_PID))
+        );
+        assert_eq!(usb_ids_for_hidraw(&sys, "hidraw_ausente"), None);
+        let _ = fs::remove_dir_all(&sys);
+    }
+
+    #[test]
+    fn usb_ids_rechaza_hid_id_mal_formado() {
+        let sys = fixture_sys_hidraw("uevent");
+        write_hidraw_node(&sys, "hidraw0", Some("solo-dos:partes"), None);
+        assert_eq!(usb_ids_for_hidraw(&sys, "hidraw0"), None);
+        write_hidraw_node(&sys, "hidraw1", Some("0003:gggg:00008104"), None);
+        assert_eq!(usb_ids_for_hidraw(&sys, "hidraw1"), None);
+        write_hidraw_node(&sys, "hidraw2", Some("0003:00000414:zzzz"), None);
+        assert_eq!(usb_ids_for_hidraw(&sys, "hidraw2"), None);
+        assert!(!matches_supported_profile(&sys, "hidraw2"));
+        let _ = fs::remove_dir_all(&sys);
+    }
+
+    #[test]
+    fn hidraw_get_feature_falla_en_dispositivo_no_hid() {
+        // /dev/zero abre en RW pero no habla HID: cubre el errno de ioctl.
+        let Ok(mut h) = HidRaw::open(PathBuf::from("/dev/zero")) else {
+            return;
+        };
+        let err = h
+            .get_feature(REPORT_ID_ATTRS, ATTRS_REPORT_LEN)
+            .unwrap_err();
+        assert!(!err.to_string().is_empty(), "{err}");
+        let err = h.set_feature(&[REPORT_ID_ATTRS, 0]).unwrap_err();
+        assert!(!err.to_string().is_empty(), "{err}");
     }
 }
 

@@ -1,0 +1,43 @@
+# H-01 (opcional): CodeQL advanced para Rust en cron semanal.
+#
+# El repo ya tiene Code Scanning *default setup* (semanal, incluye rust).
+# Advanced y default setup chocan: no se pueden activar a la vez.
+# Este workflow queda listo (SHA pinados) y solo corre si la variable de
+# repositorio CODEQL_ADVANCED=1 tras desactivar default setup en Settings →
+# Code security. Sin esa variable el cron no falla en rojo.
+name: CodeQL
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: analyze
+    if: ${{ vars.CODEQL_ADVANCED == '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [rust]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9418214df1f2c4b8128c770156c409013b07d6b9 # v3.39.3
+        with:
+          languages: ${{ matrix.language }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@9418214df1f2c4b8128c770156c409013b07d6b9 # v3.39.3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@9418214df1f2c4b8128c770156c409013b07d6b9 # v3.39.3
+        with:
+          category: "/language:${{ matrix.language }}"

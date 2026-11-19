@@ -1,6 +1,7 @@
 import math
 import os
 import sys
+import warnings
 
 try:
     from gui import api
@@ -26,7 +27,6 @@ COLORES = _colors.COLORES
 from gui.constants import (
     BRILLO_PASO,
     BRIGHTNESS_DEBOUNCE_MS,
-    STATE_POLL_SECONDS,
     TRAY_TICK_SECONDS,
 )
 
@@ -39,12 +39,10 @@ try:
     import gi
 
     gi.require_version("Gtk", "3.0")
-    gi.require_version("AyatanaAppIndicator3", "0.1")
-    from gi.repository import AyatanaAppIndicator3, Gtk, GLib
+    from gi.repository import Gio, GLib, Gtk
 except Exception as exc:
     raise TrayUnavailable(
-        "Bandeja no disponible: instala gir1.2-ayatanaappindicator3-0.1 (%s)"
-        % exc
+        "Bandeja no disponible: instala python3-gi con Gtk 3 (%s)" % exc
     ) from exc
 
 try:
@@ -56,6 +54,59 @@ except Exception as exc:
 
 
 MODES = ("fijar", "breathe", "rainbow", "off")
+
+SNI_IFACE = "org.kde.StatusNotifierItem"
+WATCHER_NAME = "org.kde.StatusNotifierWatcher"
+WATCHER_PATH = "/StatusNotifierWatcher"
+WATCHER_IFACE = "org.kde.StatusNotifierWatcher"
+_SNI_SEQ = 0
+
+SNI_XML = """
+<node>
+  <interface name="org.kde.StatusNotifierItem">
+    <property name="Category" type="s" access="read"/>
+    <property name="Id" type="s" access="read"/>
+    <property name="Title" type="s" access="read"/>
+    <property name="Status" type="s" access="read"/>
+    <property name="WindowId" type="u" access="read"/>
+    <property name="IconName" type="s" access="read"/>
+    <property name="IconPixmap" type="a(iiay)" access="read"/>
+    <property name="OverlayIconName" type="s" access="read"/>
+    <property name="OverlayIconPixmap" type="a(iiay)" access="read"/>
+    <property name="AttentionIconName" type="s" access="read"/>
+    <property name="AttentionIconPixmap" type="a(iiay)" access="read"/>
+    <property name="AttentionMovieName" type="s" access="read"/>
+    <property name="ToolTip" type="(sa(iiay)ss)" access="read"/>
+    <property name="IconThemePath" type="s" access="read"/>
+    <property name="Menu" type="o" access="read"/>
+    <property name="ItemIsMenu" type="b" access="read"/>
+    <method name="ContextMenu">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+    </method>
+    <method name="Activate">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+    </method>
+    <method name="SecondaryActivate">
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+    </method>
+    <method name="Scroll">
+      <arg type="i" name="delta" direction="in"/>
+      <arg type="s" name="orientation" direction="in"/>
+    </method>
+    <signal name="NewTitle"/>
+    <signal name="NewIcon"/>
+    <signal name="NewAttentionIcon"/>
+    <signal name="NewOverlayIcon"/>
+    <signal name="NewToolTip"/>
+    <signal name="NewStatus">
+      <arg type="s" name="status"/>
+    </signal>
+  </interface>
+</node>
+"""
 
 
 def _normalize_hex(color_hex):
@@ -152,6 +203,240 @@ def render_tray_icon(color_hex, mode):
     return path
 
 
+def _png_to_icon_pixmap(path):
+    """Convierte PNG a IconPixmap SNI: a(iiay) en ARGB big-endian."""
+    surface = cairo.ImageSurface.create_from_png(path)
+    width = surface.get_width()
+    height = surface.get_height()
+    stride = surface.get_stride()
+    src = bytes(surface.get_data())
+    out = bytearray(width * height * 4)
+    for y in range(height):
+        row = y * stride
+        for x in range(width):
+            i = row + x * 4
+            # Cairo ARGB32 little-endian en memoria: B, G, R, A
+            b, g, r, a = src[i], src[i + 1], src[i + 2], src[i + 3]
+            j = (y * width + x) * 4
+            out[j] = a
+            out[j + 1] = r
+            out[j + 2] = g
+            out[j + 3] = b
+    return [(width, height, bytes(out))]
+
+
+def _session_bus():
+    try:
+        return Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    except Exception as exc:
+        raise TrayUnavailable(
+            "Bandeja no disponible: sin bus de sesión D-Bus (%s)" % exc
+        ) from exc
+
+
+def _sni_host_registered(bus):
+    try:
+        result = bus.call_sync(
+            WATCHER_NAME,
+            WATCHER_PATH,
+            "org.freedesktop.DBus.Properties",
+            "Get",
+            GLib.Variant("(ss)", (WATCHER_IFACE, "IsStatusNotifierHostRegistered")),
+            GLib.VariantType("(v)"),
+            Gio.DBusCallFlags.NONE,
+            2000,
+            None,
+        )
+        value = result.unpack()[0]
+        return bool(value)
+    except Exception:
+        return False
+
+
+class StatusNotifierItem:
+    """StatusNotifierItem exportado con Gio (cliente SNI nativo)."""
+
+    def __init__(self, on_activate, on_context_menu, on_scroll):
+        self._on_activate = on_activate
+        self._on_context_menu = on_context_menu
+        self._on_scroll = on_scroll
+        self._status = "Active"
+        self._icon_name = "ilutex"
+        self._icon_theme_path = ""
+        self._icon_pixmap = []
+        self._owner_id = 0
+        self._registration = None
+        self._bus = _session_bus()
+        if not _sni_host_registered(self._bus):
+            raise TrayUnavailable(
+                "Bandeja no disponible: no hay host StatusNotifier en la sesión"
+            )
+        global _SNI_SEQ
+        _SNI_SEQ += 1
+        self._seq = _SNI_SEQ
+        # Ruta canónica del protocolo; un solo ítem activo por conexión.
+        self._path = "/StatusNotifierItem"
+        self._service = "org.kde.StatusNotifierItem-%d-%d" % (
+            os.getpid(), self._seq
+        )
+        info = Gio.DBusNodeInfo.new_for_xml(SNI_XML)
+        iface = info.interfaces[0]
+
+        def method_call(_conn, _sender, _path, _iface, method, params, invocation):
+            try:
+                if method == "Activate":
+                    GLib.idle_add(self._on_activate)
+                elif method == "SecondaryActivate":
+                    GLib.idle_add(self._on_activate)
+                elif method == "ContextMenu":
+                    x, y = params.unpack()
+                    GLib.idle_add(self._on_context_menu, int(x), int(y))
+                elif method == "Scroll":
+                    delta, orientation = params.unpack()
+                    GLib.idle_add(
+                        self._on_scroll, int(delta), str(orientation or "vertical")
+                    )
+            except Exception:
+                log_exc("método SNI")
+            invocation.return_value(None)
+
+        def get_property(_conn, _sender, _path, _iface, prop):
+            if prop == "Category":
+                return GLib.Variant("s", "Hardware")
+            if prop == "Id":
+                return GLib.Variant("s", "ilutex")
+            if prop == "Title":
+                return GLib.Variant("s", "iLutex")
+            if prop == "Status":
+                return GLib.Variant("s", self._status)
+            if prop == "WindowId":
+                return GLib.Variant("u", 0)
+            if prop == "IconName":
+                return GLib.Variant("s", self._icon_name)
+            if prop == "IconPixmap":
+                return GLib.Variant("a(iiay)", self._icon_pixmap)
+            if prop == "OverlayIconName":
+                return GLib.Variant("s", "")
+            if prop == "OverlayIconPixmap":
+                return GLib.Variant("a(iiay)", [])
+            if prop == "AttentionIconName":
+                return GLib.Variant("s", "")
+            if prop == "AttentionIconPixmap":
+                return GLib.Variant("a(iiay)", [])
+            if prop == "AttentionMovieName":
+                return GLib.Variant("s", "")
+            if prop == "ToolTip":
+                return GLib.Variant("(sa(iiay)ss)", ("", [], "iLutex", ""))
+            if prop == "IconThemePath":
+                return GLib.Variant("s", self._icon_theme_path)
+            if prop == "Menu":
+                return GLib.Variant("o", "/")
+            if prop == "ItemIsMenu":
+                return GLib.Variant("b", False)
+            raise Exception("propiedad SNI desconocida: %s" % prop)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message=".*register_object is deprecated.*"
+            )
+            self._registration = self._bus.register_object(
+                self._path, iface, method_call, get_property, None
+            )
+        if self._registration == 0:
+            raise TrayUnavailable(
+                "Bandeja no disponible: no se pudo exportar StatusNotifierItem"
+            )
+
+        acquired = {"ok": False}
+        loop = GLib.MainLoop()
+
+        def on_name_acquired(_conn, _name):
+            acquired["ok"] = True
+            loop.quit()
+
+        def on_name_lost(_conn, _name):
+            loop.quit()
+
+        self._owner_id = Gio.bus_own_name_on_connection(
+            self._bus,
+            self._service,
+            Gio.BusNameOwnerFlags.NONE,
+            on_name_acquired,
+            on_name_lost,
+        )
+        GLib.timeout_add(3000, loop.quit)
+        loop.run()
+        if not acquired["ok"]:
+            self.close()
+            raise TrayUnavailable(
+                "Bandeja no disponible: no se pudo adquirir el nombre SNI"
+            )
+        try:
+            self._bus.call_sync(
+                WATCHER_NAME,
+                WATCHER_PATH,
+                WATCHER_IFACE,
+                "RegisterStatusNotifierItem",
+                GLib.Variant("(s)", (self._service,)),
+                None,
+                Gio.DBusCallFlags.NONE,
+                5000,
+                None,
+            )
+        except Exception as exc:
+            self.close()
+            raise TrayUnavailable(
+                "Bandeja no disponible: StatusNotifierWatcher rechazó el registro (%s)"
+                % exc
+            ) from exc
+
+    def set_icon(self, path):
+        try:
+            self._icon_pixmap = _png_to_icon_pixmap(path)
+            self._icon_theme_path = os.path.dirname(path) or ""
+            self._icon_name = os.path.splitext(os.path.basename(path))[0]
+        except Exception:
+            log_exc("icono SNI")
+            return
+        try:
+            self._bus.emit_signal(
+                None, self._path, SNI_IFACE, "NewIcon", None
+            )
+        except Exception:
+            log_exc("señal NewIcon")
+
+    def set_status(self, active):
+        self._status = "Active" if active else "Passive"
+        try:
+            self._bus.emit_signal(
+                None,
+                self._path,
+                SNI_IFACE,
+                "NewStatus",
+                GLib.Variant("(s)", (self._status,)),
+            )
+        except Exception:
+            log_exc("señal NewStatus")
+
+    def close(self):
+        try:
+            self.set_status(False)
+        except Exception:
+            log_exc("status Passive al cerrar")
+        if self._owner_id:
+            try:
+                Gio.bus_unown_name(self._owner_id)
+            except Exception:
+                log_exc("liberar nombre SNI")
+            self._owner_id = 0
+        if self._registration:
+            try:
+                self._bus.unregister_object(self._registration)
+            except Exception:
+                log_exc("desregistrar SNI")
+            self._registration = None
+
+
 class TrayIndicator:
     def __init__(self, client, on_toggle_window, on_preferences=None,
                  on_about=None, on_quit=None, backend=None):
@@ -180,25 +465,13 @@ class TrayIndicator:
         except Exception:
             log_exc("estado inicial de bandeja")
         self._visible = True
-        self._indicator = AyatanaAppIndicator3.Indicator.new(
-            "ilutex",
-            "ilutex",
-            AyatanaAppIndicator3.IndicatorCategory.HARDWARE,
+        self._indicator = StatusNotifierItem(
+            on_activate=self._ui_open,
+            on_context_menu=self._popup_menu,
+            on_scroll=self._on_sni_scroll,
         )
-        self._indicator.set_title("iLutex")
-        self._indicator.set_status(AyatanaAppIndicator3.IndicatorStatus.ACTIVE)
         self._build_menu()
         self._render_icon()
-        try:
-            self._indicator.connect("scroll-event", self._on_scroll)
-        except Exception:
-            log_exc("scroll del indicador")
-        for signal in ("activate", "activate-event"):
-            try:
-                self._indicator.connect(signal, self._on_activate_signal)
-                break
-            except Exception:
-                continue
         try:
             GLib.timeout_add_seconds(TRAY_TICK_SECONDS, self._tick)
         except Exception:
@@ -243,12 +516,7 @@ class TrayIndicator:
         menu.append(self._quit_item)
         menu.show_all()
         self._menu = menu
-        self._indicator.set_menu(menu)
         self._sync_menus()
-        try:
-            self._indicator.set_secondary_activate_target(self._open_item)
-        except Exception:
-            log_exc("activación secundaria")
 
     def _build_brightness_item(self):
         self._scale = Gtk.Scale.new_with_range(
@@ -317,6 +585,19 @@ class TrayIndicator:
             log_exc("sincronizar menús")
         finally:
             self._syncing_menu = False
+
+    def _popup_menu(self, x=0, y=0):
+        try:
+            if hasattr(self._menu, "popup_at_pointer"):
+                self._menu.popup_at_pointer(None)
+                return False
+        except Exception:
+            log_exc("popup_at_pointer")
+        try:
+            self._menu.popup(None, None, None, None, 0, Gtk.get_current_event_time())
+        except Exception:
+            log_exc("popup menú bandeja")
+        return False
 
     # --- infraestructura: cola async, reintentos, icono ------------------
 
@@ -435,12 +716,9 @@ class TrayIndicator:
             log_exc("icono de bandeja")
             return
         try:
-            self._indicator.set_icon_full(path, "ilutex")
+            self._indicator.set_icon(path)
         except Exception:
-            try:
-                self._indicator.set_icon(path)
-            except Exception:
-                log_exc("poner icono")
+            log_exc("poner icono")
 
     # --- callbacks de la UI ------------------------------------------------
 
@@ -449,9 +727,7 @@ class TrayIndicator:
             self._on_toggle_window()
         except Exception:
             log_exc("abrir ventana")
-
-    def _on_activate_signal(self, *args):
-        self._ui_open()
+        return False
 
     def _ui_preferences(self, *args):
         try:
@@ -471,10 +747,15 @@ class TrayIndicator:
     def _on_color_activado(self, item, hexv):
         if self._syncing_menu:
             return
+        # RadioMenuItem también notifica al desactivar el hermano.
+        if hasattr(item, "get_active") and not item.get_active():
+            return
         self._do_color(hexv)
 
     def _on_mode_activado(self, item, key):
         if self._syncing_menu:
+            return
+        if hasattr(item, "get_active") and not item.get_active():
             return
         if key == "fijar":
             self._do_fijar()
@@ -568,6 +849,17 @@ class TrayIndicator:
                 self._syncing_scale = False
         self._enqueue("brightness", target)
 
+    def _on_sni_scroll(self, delta, orientation):
+        try:
+            if str(orientation).lower().startswith("hor"):
+                return False
+            steps = 1 if int(delta) > 0 else -1
+        except Exception:
+            log_exc("rueda SNI")
+            return False
+        self._on_scroll(None, steps, 0)
+        return False
+
     def _on_scroll(self, _indicator, steps, _orientation, *args):
         try:
             delta = BRILLO_PASO if int(steps) > 0 else -BRILLO_PASO
@@ -582,14 +874,7 @@ class TrayIndicator:
     def set_visible(self, visible):
         self._visible = bool(visible)
         try:
-            if self._visible:
-                self._indicator.set_status(
-                    AyatanaAppIndicator3.IndicatorStatus.ACTIVE
-                )
-            else:
-                self._indicator.set_status(
-                    AyatanaAppIndicator3.IndicatorStatus.PASSIVE
-                )
+            self._indicator.set_status(self._visible)
         except Exception:
             log_exc("visibilidad del indicador")
 
@@ -617,9 +902,7 @@ class TrayIndicator:
         except Exception:
             log_exc("parar al salir")
         try:
-            self._indicator.set_status(
-                AyatanaAppIndicator3.IndicatorStatus.PASSIVE
-            )
+            self._indicator.close()
         except Exception:
             log_exc("ocultar indicador")
         try:

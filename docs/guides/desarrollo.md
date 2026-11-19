@@ -8,7 +8,7 @@ Checklist ejecutable (en orden; la fachada es `make validate`):
 - [ ] `python3 -m unittest discover -s gui/tests` — tests de la GUI (sin display ni hardware; el control D-Bus necesita `python3-gi` y `dbus-daemon`). En el job `quality` van con `ILUTEX_REQUIRE_GUI_SUITE=1` + `ILUTEX_GUI_TESTS=1` + `xvfb-run` (GTK4/Adw); sin el flag de suite `test_window_init` se omite (smoke no lo exige)
 - [ ] `make check-i18n` — coherencia `.pot`/`.po` y sin cadenas sin traducir
 - [ ] `make smoke` — `./scripts/smoke.sh` (binario + GUI + packaging + tests unitarios)
-- [ ] `./scripts/install.sh` — instala en `~/.local` + udev (sudo) + unidades de usuario
+- [ ] `./scripts/install.sh` — orquesta CLI (udev/sudo) + GUI; `--release <tag>` descarga y verifica artefactos
 
 ## Calidad
 
@@ -19,7 +19,7 @@ Checklist ejecutable (en orden; la fachada es `make validate`):
   los que cargan `.mo` hacen skip si no se ejecutó `make i18n`), `compat`
   (detección de distro con `/etc/os-release` emulado), los helpers de la
   bandeja y el control D-Bus (`test_dbus_control.py`). Los
-  tests de bandeja hacen skip si Gtk3/Ayatana faltan o si Gtk4 ya está
+  tests de bandeja hacen skip si Gtk3/Gio/cairo faltan o si Gtk4 ya está
   cargado en el proceso (incompatibilidad GTK3/GTK4 documentada); en ese
   caso corren aislados: `python3 -m unittest gui.tests.test_tray_helpers`.
 - **Control D-Bus**: `test_dbus_control.py` arranca un `dbus-daemon` de
@@ -39,18 +39,25 @@ Checklist ejecutable (en orden; la fachada es `make validate`):
   **CLI Rust** están en español a propósito (identidad del proyecto); la
   **GUI** sí es traducible: msgids en inglés con catálogos `po/es.po` y
   `po/en.po` (ver ADR 14).
-- **Benchmarks**: `cargo run --release --example bench_colors` imprime una
-  tabla de ns/op de `parse_color`, `scale`, `hsv`, `to_hex` y los
-  constructores de informes, usando solo `std::time::Instant` y
-  `std::hint::black_box` (sin `criterion`, ver ADR 10 en
-  [`DECISIONS.md`](../architecture/decisions/DECISIONS.md)).
+- **Benchmarks (camino puro)**: `cargo bench` ejecuta `benches/set_bench.rs`
+  e `info_bench.rs` con `criterion` (solo `[dev-dependencies]`, ADR 2/10).
+  Miden parseo/escala/construcción de informes y `parse_attrs` / ioctl
+  request **sin** abrir el AERO X16. El workflow
+  [`.github/workflows/benchmark.yml`](../../.github/workflows/benchmark.yml)
+  guarda o compara baselines contra `main`. El ejemplo ligero
+  `cargo run --release --example bench_colors` (`Instant` + `black_box`)
+  se conserva.
+- **Presupuesto hardware (manual)**: p95 ≤ **50 ms** para `ilutex set`
+  contra el teclado real. Esa medición **no** entra en CI (los runners no
+  tienen el dispositivo) y **no** debe fallar jobs por hardware ausente.
 - **Property tests**: `src/color.rs` y `src/protocol.rs` incluyen pruebas
   pseudoaleatorias deterministas con un xorshift64 de semilla fija (sin
   `proptest`, ver ADR 10); corren con el resto de `cargo test`.
-- **Cobertura**: no hay gate `llvm-cov` en este crate (cero dependencias,
-  ADR 2 y 10). El mínimo de flota (≥ 70 %) se cubre con los 43 tests de
-  `cargo test` más el smoke. No se añade `criterion`/`proptest`/`tarpaulin`
-  para inventar un porcentaje.
+- **Cobertura**: `cargo tarpaulin --fail-under 70` en el job `quality`
+  (versión pinada; excluye `packaging/`/`examples/`/`benches/` y el
+  entrypoint `src/main.rs`). Si el porcentaje cae, se añaden tests — no
+  se baja el umbral. `proptest` no entra (ADR 10); `criterion` solo vía
+  `[dev-dependencies]` en los benches.
 
 Commits convencionales (`feat:`, `fix:`, `docs:`…). El CHANGELOG.md es un
 resumen curado a mano por release; las notas del release las genera GitHub
