@@ -95,6 +95,6 @@ po/             gettext (es)
 ## Learned Workspace Facts
 
 - Remoto canónico en GitHub: `Soluciones-Alexendros/ilutex`.
-- El job `quality` incluye gitleaks (binario y action), `cargo-audit`, auditoría/licencias pip de la GUI, `cargo tarpaulin --fail-under 70`, y la suite GUI con `python3 -m unittest` bajo xvfb, `ILUTEX_REQUIRE_DBUS=1` y aislamiento de red (`unshare -n`).
+- El job `quality` incluye gitleaks (binario y action), `cargo-audit`, `pip-audit --disable-pip` (sin compilar PyGObject) y licencias pip de la GUI, `cargo tarpaulin --fail-under 70`, y la suite GUI con `python3 -m unittest` bajo xvfb y `ILUTEX_REQUIRE_DBUS=1`, en userns+netns (`unshare -rn`) tras relajar AppArmor si el runner bloquea userns sin privilegios.
 - `release.yml` firma artefactos con cosign keyless.
 - Canales de distribución a alinear en instalador y docs: AUR, Debian/`cargo-deb`, paquetes npm por plataforma y pkgs Omarchy.
