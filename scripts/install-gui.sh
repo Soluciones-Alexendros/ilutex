@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=install-common.sh
+# shellcheck source=scripts/install-common.sh
 . "${SCRIPTS_DIR}/install-common.sh"
 resolve_install_paths "$SCRIPTS_DIR"
 

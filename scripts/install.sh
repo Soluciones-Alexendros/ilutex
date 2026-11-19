@@ -14,7 +14,7 @@
 set -euo pipefail
 
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=install-common.sh
+# shellcheck source=scripts/install-common.sh
 . "${SCRIPTS_DIR}/install-common.sh"
 
 ILUTEX_GITHUB_REPO="${ILUTEX_GITHUB_REPO:-Soluciones-Alexendros/ilutex}"
